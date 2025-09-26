@@ -293,7 +293,7 @@ export default function AdminPage() {
           
           console.log('대시보드 신청인원 데이터:', counts)
           setExperienceApplicationCounts(prev => ({ ...prev, ...counts as Record<string, number> }))
-        } catch (error) {
+        } catch (error: unknown) {
           console.error('대시보드 신청인원 로딩 오류:', error)
         }
       }, 1000)
@@ -320,11 +320,11 @@ export default function AdminPage() {
         
         // 샤오홍슈 체험단 신청서만 필터링
         const xiaohongshuApplications = result.applications?.filter(app => {
-          const isXiaohongshu = (app as any).collectionSource === 'experiences'
+          const isXiaohongshu = (app as Application & { collectionSource?: string }).collectionSource === 'experiences'
           console.log('신청서 필터링 확인:', {
             experienceId: app.experienceId,
             experienceTitle: app.experienceTitle,
-            collectionSource: (app as any).collectionSource,
+            collectionSource: (app as Application & { collectionSource?: string }).collectionSource,
             willInclude: isXiaohongshu
           })
           return isXiaohongshu
