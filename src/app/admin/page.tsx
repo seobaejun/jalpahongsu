@@ -754,10 +754,12 @@ export default function AdminPage() {
           benefitsZh: [''],
           requirements: [''],
           requirementsZh: [''],
+          tags: [''],
+          tagsZh: [''],
           image: null,
           imagePreview: '',
           images: [],
-          imagePreviews: []
+          imagePreviews: [] as string[]
         })
       }
       setShowCustomCategory(false)
