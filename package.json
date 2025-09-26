@@ -1,0 +1,45 @@
+{
+  "name": "hongsu3",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build --turbopack",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:headed": "playwright test --headed",
+    "seed": "node scripts/seedFirestore.js",
+    "add-user": "node scripts/addExistingUser.js",
+    "add-test-users": "node scripts/addTestUsers.js",
+    "add-examples": "node scripts/addExampleExperiences.js",
+    "add-today": "node scripts/updateTodayExperiences.js",
+    "grant-admin": "node scripts/grantAdminAccess.js",
+    "check-roles": "node scripts/checkUserRoles.js",
+    "check-experiences": "node scripts/checkExperiences.js",
+    "delete-experiences": "node scripts/deleteExperiences.js",
+    "check-storage": "node scripts/checkStorageRules.js"
+  },
+  "dependencies": {
+    "firebase": "^12.3.0",
+    "firebase-admin": "^13.5.0",
+    "lucide-react": "^0.544.0",
+    "next": "15.5.4",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@playwright/test": "^1.55.1",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "15.5.4",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

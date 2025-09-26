@@ -1,0 +1,36 @@
+Vercel 환경 변수 설정용
+
+다음 환경 변수들을 Vercel 대시보드에서 설정하세요:
+
+변수명: NEXT_PUBLIC_FIREBASE_API_KEY
+값: AIzaSyBozZHNiZa7m_MznFzzcj-xRxf2J7bjeOo
+
+변수명: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+값: hongsu-9d9c2.firebaseapp.com
+
+변수명: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+값: hongsu-9d9c2
+
+변수명: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+값: hongsu-9d9c2.firebasestorage.app
+
+변수명: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+값: 102045054206
+
+변수명: NEXT_PUBLIC_FIREBASE_APP_ID
+값: 1:102045054206:web:1f060f9e06af0b7e6fe1af
+
+변수명: NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
+값: G-2SDG086GFP
+
+설정 방법:
+1. https://vercel.com/dashboard 접속
+2. jalpahongsu 프로젝트 클릭
+3. Settings → Environment Variables
+4. 위의 변수들을 하나씩 추가
+5. 모든 변수 추가 후 Redeploy 실행
+
+
+
+
+

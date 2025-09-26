@@ -1,0 +1,2723 @@
+'use client'
+
+import { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
+import { useAuth } from '@/hooks/useAuth'
+import { useAdminAuth } from '@/hooks/useAdminAuth'
+import { useLanguage } from '@/contexts/LanguageContext'
+import { seedExperiences, resetExperiences } from '@/lib/seedData'
+import { getAllUsers, getUserStats, User } from '@/lib/userService'
+import { getRecentExperiences, getTodayExperiences, getExperienceStats } from '@/lib/experienceService'
+import { getInstagramExperienceStats } from '@/lib/instagramExperienceService'
+import { Experience } from '@/types/database'
+import { updateUserRole, deleteUser, UserRole } from '@/lib/userRoleService'
+import { getAllApplications, getApplicationStats, updateApplicationStatus, deleteApplication, cancelApproval, cancelRejection, Application, migrateApplicationsToCollection } from '@/lib/applicationService'
+import Image from 'next/image'
+import { 
+  Users, 
+  Activity, 
+  BarChart3, 
+  RefreshCw,
+  UserCheck,
+  Calendar,
+  TrendingUp,
+  Shield,
+  FileText,
+  Clock,
+  CheckCircle,
+  XCircle,
+  Plus,
+  Download,
+  List
+} from 'lucide-react'
+
+export default function AdminPage() {
+  const { user, isAuthenticated, loading } = useAuth()
+  const { isAdmin, adminLoading, userRole } = useAdminAuth()
+  const router = useRouter()
+  const { t } = useLanguage()
+  const [users, setUsers] = useState<(User & { id: string })[]>([])
+  const [userStats, setUserStats] = useState({ totalUsers: 0, todayUsers: 0, thisWeekUsers: 0 })
+  const [usersLoading, setUsersLoading] = useState(false)
+  const [activeTab, setActiveTab] = useState('dashboard')
+  const [activeSubTab, setActiveSubTab] = useState('')
+  
+  // ì¹´ë“œ ?ì„± ê´€???íƒœ
+  const [cardForm, setCardForm] = useState({
+    activityType: '',
+    title: '',
+    titleZh: '',
+    category: '',
+    customCategory: '',
+    description: '',
+    descriptionZh: '',
+    maxParticipants: '',
+    experienceDate: '',
+    experienceTimePeriod: '',
+    experienceTimeHour: '',
+    experienceTimeMinute: '',
+    recruitmentStartDate: '',
+    recruitmentEndDate: '',
+    location: '',
+    locationZh: '',
+    benefits: [''],
+    benefitsZh: [''],
+    requirements: [''],
+    requirementsZh: [''],
+    image: null as File | null,
+    imagePreview: '',
+    images: [] as File[],
+    imagePreviews: [] as string[]
+  })
+  const [showCustomCategory, setShowCustomCategory] = useState(false)
+  const [cardSubmitting, setCardSubmitting] = useState(false)
+  const [cardMessage, setCardMessage] = useState('')
+  const [editingCardId, setEditingCardId] = useState<string | null>(null)
+  
+  const [recentExperiences, setRecentExperiences] = useState<Experience[]>([])
+  const [todayExperiences, setTodayExperiences] = useState<Experience[]>([])
+  const [experienceStats, setExperienceStats] = useState({ total: 0, recruiting: 0, ongoing: 0, completed: 0 })
+  const [instagramStats, setInstagramStats] = useState({ total: 0, recruiting: 0, ongoing: 0, completed: 0 })
+  // const [editingUser, setEditingUser] = useState<string | null>(null) // ?¬ìš©?˜ì? ?ŠìŒ
+  const [userMessage, setUserMessage] = useState('')
+  const [applications, setApplications] = useState<Application[]>([])
+  const [applicationStats, setApplicationStats] = useState({ 
+    total: 0, 
+    pending: 0, 
+    approved: 0, 
+    rejected: 0,
+    todayApplications: 0,
+    thisWeekApplications: 0,
+    thisMonthApplications: 0
+  })
+  const [applicationsLoading, setApplicationsLoading] = useState(false)
+  const [applicationMessage, setApplicationMessage] = useState('')
+  const [allExperiences, setAllExperiences] = useState<Experience[]>([])
+  const [experiencesLoading, setExperiencesLoading] = useState(false)
+  
+  // ?‘ì? ?¤ìš´ë¡œë“œ ê´€???íƒœ
+  const [excelData, setExcelData] = useState<{[key: string]: string | number | undefined}[]>([])
+  const [excelLoading, setExcelLoading] = useState(false)
+  const [excelMessage, setExcelMessage] = useState('')
+  const [experienceMessage, setExperienceMessage] = useState('')
+  const [experienceApplicationCounts, setExperienceApplicationCounts] = useState<{[key: string]: number}>({})
+
+  // ? ì§œ???°ë¥¸ ?íƒœ ?ë™ ê³„ì‚° ?¨ìˆ˜
+  const getStatusByDate = (experience: Experience) => {
+    if (!experience.recruitmentStartDate || !experience.recruitmentEndDate) {
+      return 'recruiting' // ê¸°ë³¸ê°’ìœ¼ë¡?ëª¨ì§‘ì¤?ë°˜í™˜
+    }
+    
+    const today = new Date()
+    const startDate = new Date(experience.recruitmentStartDate)
+    const endDate = new Date(experience.recruitmentEndDate)
+    
+    // ëª¨ì§‘ ?œì‘ ??    if (today < startDate) {
+      return 'recruiting'
+    }
+    // ëª¨ì§‘ ê¸°ê°„ ì¤?    else if (today >= startDate && today <= endDate) {
+      return 'recruiting'
+    }
+    // ëª¨ì§‘ ë§ˆê° ??(ì²´í—˜ ?¼ì • ??
+    else if (today > endDate) {
+      // ì²´í—˜ ?¼ì •???ˆë‹¤ë©?ì²´í—˜ ?¼ì • ê¸°ì??¼ë¡œ ?ë‹¨
+      if (experience.date) {
+        const experienceDate = new Date(experience.date)
+        if (today < experienceDate) {
+          return 'ongoing' // ëª¨ì§‘ ë§ˆê°, ì²´í—˜ ??        } else {
+          return 'completed' // ì²´í—˜ ?„ë£Œ
+        }
+      }
+      return 'ongoing' // ì²´í—˜ ?¼ì •???†ìœ¼ë©?ì§„í–‰ì¤?    }
+    
+    return 'recruiting' // ê¸°ë³¸ê°?  }
+
+  useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      router.push('/login')
+      return
+    }
+    
+    if (!adminLoading && isAuthenticated && !isAdmin) {
+      router.push('/')
+      return
+    }
+  }, [isAuthenticated, loading, adminLoading, isAdmin, router])
+
+  const loadUsers = useCallback(async () => {
+    setUsersLoading(true)
+    try {
+      const result = await getAllUsers()
+      if (result.success) {
+        setUsers(result.users || [])
+      }
+    } catch {
+      console.error('?¬ìš©??ëª©ë¡ ë¡œë”© ?¤ë¥˜')
+    } finally {
+      setUsersLoading(false)
+    }
+  }, [])
+
+  const loadUserStats = useCallback(async () => {
+    try {
+      const result = await getUserStats()
+      if (result.success) {
+        setUserStats(result.stats || { totalUsers: 0, todayUsers: 0, thisWeekUsers: 0 })
+      }
+    } catch {
+      console.error('?¬ìš©???µê³„ ë¡œë”© ?¤ë¥˜')
+    }
+  }, [])
+
+  const loadExperienceData = useCallback(async () => {
+    try {
+      console.log('=== ì²´í—˜???°ì´??ë¡œë”© ?œì‘ ===')
+      
+      // ?¤ì˜¤?ìŠˆ ì²´í—˜???µê³„ ë¡œë“œ
+      const statsResult = await getExperienceStats()
+      if (statsResult.success) {
+        setExperienceStats(statsResult.stats || { total: 0, recruiting: 0, ongoing: 0, completed: 0 })
+        console.log('?¤ì˜¤?ìŠˆ ì²´í—˜???µê³„ ë¡œë“œ ?„ë£Œ:', statsResult.stats)
+      } else {
+        console.error('?¤ì˜¤?ìŠˆ ì²´í—˜???µê³„ ë¡œë“œ ?¤íŒ¨:', statsResult.error)
+        // ê¸°ë³¸ê°??¤ì •
+        setExperienceStats({ total: 0, recruiting: 0, ongoing: 0, completed: 0 })
+      }
+
+      // ?¸ìŠ¤?€ê·¸ë¨ ì²´í—˜???µê³„ ë¡œë“œ
+      const instagramStatsResult = await getInstagramExperienceStats()
+      if (instagramStatsResult.success) {
+        setInstagramStats(instagramStatsResult.stats || { total: 0, recruiting: 0, ongoing: 0, completed: 0 })
+        console.log('?¸ìŠ¤?€ê·¸ë¨ ì²´í—˜???µê³„ ë¡œë“œ ?„ë£Œ:', instagramStatsResult.stats)
+      } else {
+        console.error('?¸ìŠ¤?€ê·¸ë¨ ì²´í—˜???µê³„ ë¡œë“œ ?¤íŒ¨:', instagramStatsResult.error)
+        // ê¸°ë³¸ê°??¤ì •
+        setInstagramStats({ total: 0, recruiting: 0, ongoing: 0, completed: 0 })
+      }
+
+      // ìµœê·¼ ì²´í—˜??ë¡œë“œ
+      const recentResult = await getRecentExperiences(5)
+      if (recentResult.success) {
+        setRecentExperiences(recentResult.experiences || [])
+        console.log('ìµœê·¼ ì²´í—˜??ë¡œë“œ ?„ë£Œ:', recentResult.experiences?.length)
+      } else {
+        console.error('ìµœê·¼ ì²´í—˜??ë¡œë“œ ?¤íŒ¨:', recentResult.error)
+      }
+
+      // ?¤ëŠ˜ ë°©ë¬¸ ì²´í—˜??ë¡œë“œ
+      const todayResult = await getTodayExperiences()
+      if (todayResult.success) {
+        setTodayExperiences(todayResult.experiences || [])
+        console.log('?¤ëŠ˜ ë°©ë¬¸ ì²´í—˜??ë¡œë“œ ?„ë£Œ:', todayResult.experiences?.length)
+      } else {
+        console.error('?¤ëŠ˜ ë°©ë¬¸ ì²´í—˜??ë¡œë“œ ?¤íŒ¨:', todayResult.error)
+      }
+    } catch (error) {
+      console.error('ì²´í—˜???°ì´??ë¡œë”© ?¤ë¥˜:', error)
+      // ê¸°ë³¸ê°??¤ì •
+      setExperienceStats({ total: 0, recruiting: 0, ongoing: 0, completed: 0 })
+    }
+  }, [])
+
+  const loadApplications = useCallback(async () => {
+    setApplicationsLoading(true)
+    try {
+      console.log('=== ? ì²­ ?°ì´??ë¡œë”© ?œì‘ ===')
+      const result = await getAllApplications()
+      console.log('? ì²­ ?°ì´??ë¡œë”© ê²°ê³¼:', result)
+      if (result.success) {
+        console.log('ë¡œë“œ??? ì²­ ?°ì´????', result.applications?.length || 0)
+        setApplications(result.applications || [])
+      } else {
+        console.error('? ì²­ ?°ì´??ë¡œë”© ?¤íŒ¨:', result.error)
+      }
+    } catch (error) {
+      console.error('? ì²­??ëª©ë¡ ë¡œë”© ?¤ë¥˜:', error)
+    } finally {
+      setApplicationsLoading(false)
+    }
+  }, [])
+
+  const loadApplicationStats = useCallback(async () => {
+    try {
+      const result = await getApplicationStats()
+      if (result.success) {
+        const stats = result.stats || { total: 0, pending: 0, approved: 0, rejected: 0 }
+        
+        // ì¶”ê? ?µê³„ ê³„ì‚°
+        const now = new Date()
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+        const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)
+        const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000)
+        
+        // ?”ë²„ê¹…ì„ ?„í•œ ë¡œê·¸
+        console.log('=== ? ì²­ ?µê³„ ê³„ì‚° ?œì‘ ===')
+        console.log('?„ì²´ ? ì²­ ??', applications.length)
+        console.log('?¤ëŠ˜ ? ì§œ:', today)
+        console.log('?¼ì£¼????', weekAgo)
+        console.log('?œë‹¬ ??', monthAgo)
+        
+        const todayApplications = applications.filter(app => {
+          let appDate
+          if (app.createdAt && typeof app.createdAt === 'object' && 'toDate' in app.createdAt) {
+            // Firestore Timestamp ê°ì²´??ê²½ìš°
+            appDate = app.createdAt.toDate()
+          } else {
+            // ë¬¸ì?´ì´ê±°ë‚˜ ?¤ë¥¸ ?•íƒœ??ê²½ìš°
+            appDate = new Date(app.createdAt)
+          }
+          console.log(`? ì²­ ${app.name}: createdAt=${app.createdAt}, ?Œì‹±??? ì§œ=${appDate}`)
+          return appDate >= today
+        }).length
+        
+        const thisWeekApplications = applications.filter(app => {
+          let appDate
+          if (app.createdAt && typeof app.createdAt === 'object' && 'toDate' in app.createdAt) {
+            appDate = app.createdAt.toDate()
+          } else {
+            appDate = new Date(app.createdAt)
+          }
+          return appDate >= weekAgo
+        }).length
+        
+        const thisMonthApplications = applications.filter(app => {
+          let appDate
+          if (app.createdAt && typeof app.createdAt === 'object' && 'toDate' in app.createdAt) {
+            appDate = app.createdAt.toDate()
+          } else {
+            appDate = new Date(app.createdAt)
+          }
+          return appDate >= monthAgo
+        }).length
+        
+        console.log('?¤ëŠ˜ ? ì²­:', todayApplications)
+        console.log('?´ë²ˆ ì£?? ì²­:', thisWeekApplications)
+        console.log('?´ë²ˆ ??? ì²­:', thisMonthApplications)
+        
+        setApplicationStats({
+          ...stats,
+          todayApplications,
+          thisWeekApplications,
+          thisMonthApplications
+        })
+      }
+    } catch {
+      console.error('? ì²­ ?µê³„ ë¡œë”© ?¤ë¥˜')
+    }
+  }, [])
+
+  const loadAllExperiences = useCallback(async () => {
+    setExperiencesLoading(true)
+    try {
+      const { collection, getDocs, query, orderBy } = await import('firebase/firestore')
+      const { db } = await import('@/lib/firebase')
+      
+      const experiencesRef = collection(db, 'experiences')
+      const q = query(experiencesRef, orderBy('createdAt', 'desc'))
+      const snapshot = await getDocs(q)
+      
+      const experiencesData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Experience[]
+      
+      setAllExperiences(experiencesData)
+    } catch {
+      console.error('ì²´í—˜??ëª©ë¡ ë¡œë”© ?¤ë¥˜')
+    } finally {
+      setExperiencesLoading(false)
+    }
+  }, [])
+
+  // ì²´í—˜???íƒœ ?˜ì •
+  const handleExperienceStatusUpdate = useCallback(async (experienceId: string, newStatus: 'recruiting' | 'ongoing' | 'completed') => {
+    try {
+      const { doc, updateDoc } = await import('firebase/firestore')
+      const { db } = await import('@/lib/firebase')
+      
+      const experienceRef = doc(db, 'experiences', experienceId)
+      await updateDoc(experienceRef, {
+        status: newStatus,
+        updatedAt: new Date()
+      })
+      
+      setExperienceMessage('ì²´í—˜???íƒœê°€ ?±ê³µ?ìœ¼ë¡??…ë°?´íŠ¸?˜ì—ˆ?µë‹ˆ??')
+      loadAllExperiences() // ?°ì´???ˆë¡œê³ ì¹¨
+    } catch {
+      console.error('ì²´í—˜???íƒœ ?…ë°?´íŠ¸ ?¤ë¥˜')
+      setExperienceMessage('ì²´í—˜???íƒœ ?…ë°?´íŠ¸???¤íŒ¨?ˆìŠµ?ˆë‹¤.')
+    }
+  }, [loadAllExperiences])
+
+  // ì²´í—˜???? œ
+  const handleExperienceDelete = useCallback(async (experienceId: string, experienceTitle: string) => {
+    if (!confirm(`"${experienceTitle}" ì²´í—˜?¨ì„ ?? œ?˜ì‹œê² ìŠµ?ˆê¹Œ? ???‘ì—…?€ ?˜ëŒë¦????†ìŠµ?ˆë‹¤.`)) {
+      return
+    }
+    
+    try {
+      const { doc, deleteDoc } = await import('firebase/firestore')
+      const { db } = await import('@/lib/firebase')
+      
+      const experienceRef = doc(db, 'experiences', experienceId)
+      await deleteDoc(experienceRef)
+      
+      setExperienceMessage('ì²´í—˜?¨ì´ ?±ê³µ?ìœ¼ë¡??? œ?˜ì—ˆ?µë‹ˆ??')
+      loadAllExperiences() // ?°ì´???ˆë¡œê³ ì¹¨
+    } catch {
+      console.error('ì²´í—˜???? œ ?¤ë¥˜')
+      setExperienceMessage('ì²´í—˜???? œ???¤íŒ¨?ˆìŠµ?ˆë‹¤.')
+    }
+  }, [loadAllExperiences])
+
+  // ?‘ì? ?¤ìš´ë¡œë“œ ?°ì´??ë¡œë“œ
+  const loadExcelData = useCallback(async () => {
+    try {
+      setExcelLoading(true)
+      setExcelMessage('')
+      
+      // ëª¨ë“  ? ì²­ ?°ì´?°ì? ì²´í—˜???°ì´?°ë? ê°€?¸ì˜´
+      const [applicationsData, experiencesData] = await Promise.all([
+        getAllApplications(),
+        getRecentExperiences()
+      ])
+      
+      // ?‘ì????°ì´??ë³€??      const excelData = applicationsData.applications?.map(app => {
+        const experience = experiencesData.experiences?.find(exp => exp.id === app.experienceId)
+        return {
+          '? ì²­ ID': app.id,
+          '? ì²­???´ë¦„': app.name,
+          'ì²´í—˜???œëª©': app.experienceTitle,
+          '?¬ê¶Œë²ˆí˜¸': app.passportNumber,
+          'ì²´í—˜??ì¹´í…Œê³ ë¦¬': experience?.category || '-',
+          'ì²´í—˜ ?¼ì •': experience?.date || '-',
+          'ì²´í—˜ ?¥ì†Œ': experience?.location || '-',
+          '? ì²­ ?íƒœ': app.status === 'pending' ? '?€ê¸°ì¤‘' : 
+                     app.status === 'approved' ? '?¹ì¸' : 
+                     app.status === 'rejected' ? 'ê±°ì ˆ' : app.status,
+          '? ì²­ ?¼ì‹œ': app.createdAt ? (app.createdAt instanceof Date ? app.createdAt.toLocaleString('ko-KR') : new Date(app.createdAt).toLocaleString('ko-KR')) : '? ì§œ ?†ìŒ',
+          'ì²˜ë¦¬ ?¼ì‹œ': app.updatedAt ? (app.updatedAt instanceof Date ? app.updatedAt.toLocaleString('ko-KR') : new Date(app.updatedAt).toLocaleString('ko-KR')) : '? ì§œ ?†ìŒ',
+          'ë°©ë¬¸ ? ì§œ': app.visitDate,
+          'ë°©ë¬¸ ?œê°„': app.visitTime,
+          'ë°©ë¬¸ ?Ÿìˆ˜': app.visitCount,
+          '?„ì±— ID': app.wechatId,
+          '?”ë¡œ????: app.followerCount
+        }
+      })
+      
+      setExcelData(excelData || [])
+      setExcelMessage(`ì´?${excelData?.length || 0}ê°œì˜ ? ì²­ ?°ì´?°ë? ë¡œë“œ?ˆìŠµ?ˆë‹¤.`)
+    } catch (error) {
+      console.error('?‘ì? ?°ì´??ë¡œë“œ ?¤ë¥˜:', error)
+      setExcelMessage('?°ì´??ë¡œë“œ???¤íŒ¨?ˆìŠµ?ˆë‹¤.')
+    } finally {
+      setExcelLoading(false)
+    }
+  }, [])
+
+  // ?‘ì? ?¤ìš´ë¡œë“œ ?¤í–‰
+  const handleExcelDownload = useCallback(async () => {
+    try {
+      const ExcelJS = await import('exceljs')
+      
+      if (excelData.length === 0) {
+        setExcelMessage('?¤ìš´ë¡œë“œ???°ì´?°ê? ?†ìŠµ?ˆë‹¤. ë¨¼ì? ?°ì´?°ë? ë¡œë“œ?´ì£¼?¸ìš”.')
+        return
+      }
+      
+      // ?Œí¬ë¶??ì„±
+      const workbook = new ExcelJS.Workbook()
+      const worksheet = workbook.addWorksheet('ì²´í—˜??? ì²­ë¦¬ìŠ¤??)
+      
+      // ì»¬ëŸ¼ ?¤ë” ?¤ì •
+      worksheet.columns = [
+        { header: '? ì²­ ID', key: 'applicationId', width: 15 },
+        { header: '? ì²­???´ë¦„', key: 'applicantName', width: 12 },
+        { header: '? ì²­???´ë©”??, key: 'applicantEmail', width: 25 },
+        { header: '? ì²­???„í™”ë²ˆí˜¸', key: 'applicantPhone', width: 15 },
+        { header: 'ì²´í—˜???œëª©', key: 'experienceTitle', width: 30 },
+        { header: 'ì²´í—˜??ì¹´í…Œê³ ë¦¬', key: 'experienceCategory', width: 15 },
+        { header: 'ì²´í—˜ ?¼ì •', key: 'experienceDate', width: 15 },
+        { header: 'ì²´í—˜ ?¥ì†Œ', key: 'experienceLocation', width: 20 },
+        { header: '? ì²­ ?íƒœ', key: 'status', width: 10 },
+        { header: '? ì²­ ?¼ì‹œ', key: 'appliedAt', width: 20 },
+        { header: 'ì²˜ë¦¬ ?¼ì‹œ', key: 'processedAt', width: 20 },
+        { header: '? ì²­ ?™ê¸°', key: 'motivation', width: 30 },
+        { header: 'ê²½í—˜ ë°?ê´€?¬ì‚¬', key: 'experience', width: 30 },
+        { header: 'ì¶”ê? ?•ë³´', key: 'additionalInfo', width: 30 }
+      ]
+      
+      // ?°ì´??ì¶”ê?
+      worksheet.addRows(excelData)
+      
+      // ?¤ë” ?¤í????¤ì •
+      worksheet.getRow(1).font = { bold: true }
+      worksheet.getRow(1).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFE6E6FA' }
+      }
+      
+      // ?Œì¼ëª??ì„± (?„ì¬ ? ì§œ ?¬í•¨)
+      const now = new Date()
+      const dateStr = now.toISOString().split('T')[0].replace(/-/g, '')
+      const fileName = `ì²´í—˜?¨ì‹ ì²?¦¬?¤íŠ¸_${dateStr}.xlsx`
+      
+      // ?Œì¼ ?¤ìš´ë¡œë“œ
+      const buffer = await workbook.xlsx.writeBuffer()
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = fileName
+      link.click()
+      window.URL.revokeObjectURL(url)
+      
+      setExcelMessage('?‘ì? ?Œì¼???±ê³µ?ìœ¼ë¡??¤ìš´ë¡œë“œ?˜ì—ˆ?µë‹ˆ??')
+    } catch (error) {
+      console.error('?‘ì? ?¤ìš´ë¡œë“œ ?¤ë¥˜:', error)
+      setExcelMessage('?‘ì? ?¤ìš´ë¡œë“œ???¤íŒ¨?ˆìŠµ?ˆë‹¤.')
+    }
+  }, [excelData])
+
+  // ì¹´ë“œ ?ì„±/?˜ì • ?¸ë“¤??  const handleCardSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    // ?¸ì¦ ?íƒœ ?•ì¸
+    const { auth } = await import('@/lib/firebase')
+    
+    console.log('=== ì¹´ë“œ ?ì„±/?˜ì • ?œì‘ ===')
+    console.log('?„ì¬ ?¸ì¦ ?íƒœ ?•ì¸ ì¤?..')
+    console.log('?˜ì • ëª¨ë“œ:', editingCardId ? '?˜ì •' : '?ì„±')
+    
+    // ?¸ì¦ ?íƒœ ?•ì¸
+    const user = auth.currentUser
+    console.log('?„ì¬ ?¬ìš©??', user ? {
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName
+    } : 'ë¡œê·¸?¸ë˜ì§€ ?ŠìŒ')
+    
+    if (!user) {
+      setCardMessage('ë¡œê·¸?¸ì´ ?„ìš”?©ë‹ˆ?? ?¤ì‹œ ë¡œê·¸?¸í•´ì£¼ì„¸??')
+      return
+    }
+    
+    // ?„ìˆ˜ ?„ë“œ ê²€ì¦?    if (!cardForm.activityType || !cardForm.title || !cardForm.titleZh || !cardForm.category || 
+        !cardForm.description || !cardForm.descriptionZh || !cardForm.maxParticipants || 
+        !cardForm.experienceDate || !cardForm.recruitmentStartDate || !cardForm.recruitmentEndDate ||
+        !cardForm.location || !cardForm.locationZh) {
+      setCardMessage('ëª¨ë“  ?„ìˆ˜ ?„ë“œë¥??…ë ¥?´ì£¼?¸ìš”.')
+      return
+    }
+    
+    try {
+      setCardSubmitting(true)
+      setCardMessage('')
+      
+      const { collection, addDoc, Timestamp } = await import('firebase/firestore')
+      const { db } = await import('@/lib/firebase')
+      const { uploadImage } = await import('@/lib/imageService')
+      
+      // ì²´í—˜ ?œê°„ ì¡°í•©
+      const experienceTime = cardForm.experienceTimePeriod && cardForm.experienceTimeHour && cardForm.experienceTimeMinute
+        ? `${cardForm.experienceTimePeriod} ${cardForm.experienceTimeHour}??${cardForm.experienceTimeMinute}ë¶?
+        : ''
+      
+      // ì¹´í…Œê³ ë¦¬ ê²°ì • (ê¸°í???ê²½ìš° ì»¤ìŠ¤?€ ì¹´í…Œê³ ë¦¬ ?¬ìš©)
+      const finalCategory = cardForm.category === 'other' ? cardForm.customCategory : cardForm.category
+      
+      // ëª¨ì§‘ ë§ˆê°?¼ê¹Œì§€ ?¨ì? ?¼ìˆ˜ ê³„ì‚°
+      const today = new Date()
+      const endDate = new Date(cardForm.recruitmentEndDate)
+      const diffTime = endDate.getTime() - today.getTime()
+      const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+      
+      // ?´ë?ì§€ ?…ë¡œ??ì²˜ë¦¬
+      let imageUrl = editingCardId ? cardForm.imagePreview : '/api/placeholder/300/200' // ?˜ì • ëª¨ë“œ?ì„œ??ê¸°ì¡´ ?´ë?ì§€ ? ì?
+      let allImageUrls: string[] = editingCardId ? cardForm.imagePreviews : [] // ?˜ì • ëª¨ë“œ?ì„œ??ê¸°ì¡´ ?´ë?ì§€??? ì?
+      
+      if (cardForm.images.length > 0) {
+        console.log('=== ?¬ëŸ¬ ?´ë?ì§€ ?…ë¡œ???œì‘ ===')
+        console.log('?…ë¡œ?œí•  ?´ë?ì§€ ??', cardForm.images.length)
+        
+        const timestamp = Date.now()
+        const uploadPromises = cardForm.images.map(async (imageFile, index) => {
+          const fileName = `experience_${timestamp}_${index}_${imageFile.name}`
+          const storagePath = `images/${fileName}`
+          console.log(`?´ë?ì§€ ${index + 1} ?…ë¡œ??ì¤?`, storagePath)
+          
+          const uploadResult = await uploadImage(imageFile, storagePath)
+          if (uploadResult.success && uploadResult.url) {
+            console.log(`???´ë?ì§€ ${index + 1} ?…ë¡œ???±ê³µ:`, uploadResult.url)
+            return uploadResult.url
+          } else {
+            console.error(`???´ë?ì§€ ${index + 1} ?…ë¡œ???¤íŒ¨:`, uploadResult.error)
+            return null
+          }
+        })
+        
+        try {
+          const uploadResults = await Promise.all(uploadPromises)
+          const newImageUrls = uploadResults.filter(url => url !== null) as string[]
+          
+          if (newImageUrls.length > 0) {
+            // ?˜ì • ëª¨ë“œ?ì„œ?????´ë?ì§€ë§??¬ìš© (ê¸°ì¡´ ?´ë?ì§€ êµì²´)
+            if (editingCardId) {
+              allImageUrls = newImageUrls // ê¸°ì¡´ ?´ë?ì§€ ?œê±°?˜ê³  ???´ë?ì§€ë§??¬ìš©
+              imageUrl = newImageUrls[0] // ???´ë?ì§€??ì²?ë²ˆì§¸ë¥?ë©”ì¸ ?´ë?ì§€ë¡?            } else {
+              allImageUrls = newImageUrls
+              imageUrl = allImageUrls[0] // ì²?ë²ˆì§¸ ?´ë?ì§€ë¥?ë©”ì¸ ?´ë?ì§€ë¡??¬ìš©
+            }
+            console.log('??ëª¨ë“  ?´ë?ì§€ ?…ë¡œ???„ë£Œ:', allImageUrls)
+            setCardMessage(`${newImageUrls.length}ê°œì˜ ???´ë?ì§€ê°€ ?±ê³µ?ìœ¼ë¡??…ë¡œ?œë˜?ˆìŠµ?ˆë‹¤!`)
+          } else {
+            console.error('??ëª¨ë“  ?´ë?ì§€ ?…ë¡œ???¤íŒ¨')
+            setCardMessage('?´ë?ì§€ ?…ë¡œ?œì— ?¤íŒ¨?ˆìŠµ?ˆë‹¤. ê¸°ì¡´ ?´ë?ì§€ë¥?? ì??©ë‹ˆ??')
+          }
+        } catch (error) {
+          console.error('???´ë?ì§€ ?…ë¡œ???ˆì™¸:', error)
+          const errorMessage = error instanceof Error ? error.message : '?????†ëŠ” ?¤ë¥˜ê°€ ë°œìƒ?ˆìŠµ?ˆë‹¤.';
+          setCardMessage(`?´ë?ì§€ ?…ë¡œ??ì¤??¤ë¥˜ê°€ ë°œìƒ?ˆìŠµ?ˆë‹¤: ${errorMessage}`)
+        }
+      } else if (cardForm.image) {
+        // ?¨ì¼ ?´ë?ì§€ ì²˜ë¦¬ (ê¸°ì¡´ ë¡œì§)
+        console.log('=== ?¨ì¼ ?´ë?ì§€ ?…ë¡œ???œì‘ ===')
+        const timestamp = Date.now()
+        const fileName = `experience_${timestamp}_${cardForm.image.name}`
+        const storagePath = `images/${fileName}`
+        
+        try {
+          const uploadResult = await uploadImage(cardForm.image, storagePath)
+          if (uploadResult.success && uploadResult.url) {
+            // ?˜ì • ëª¨ë“œ?ì„œ?????´ë?ì§€ë§??¬ìš© (ê¸°ì¡´ ?´ë?ì§€ êµì²´)
+            if (editingCardId) {
+              allImageUrls = [uploadResult.url] // ê¸°ì¡´ ?´ë?ì§€ ?œê±°?˜ê³  ???´ë?ì§€ë§??¬ìš©
+              imageUrl = uploadResult.url
+            } else {
+              allImageUrls = [uploadResult.url]
+              imageUrl = uploadResult.url
+            }
+            console.log('???¨ì¼ ?´ë?ì§€ ?…ë¡œ???±ê³µ:', uploadResult.url)
+            setCardMessage('?´ë?ì§€ê°€ ?±ê³µ?ìœ¼ë¡??…ë¡œ?œë˜?ˆìŠµ?ˆë‹¤!')
+          } else {
+            console.error('???¨ì¼ ?´ë?ì§€ ?…ë¡œ???¤íŒ¨:', uploadResult.error)
+            setCardMessage('?´ë?ì§€ ?…ë¡œ?œì— ?¤íŒ¨?ˆìŠµ?ˆë‹¤. ê¸°ì¡´ ?´ë?ì§€ë¥?? ì??©ë‹ˆ??')
+          }
+        } catch (error) {
+          console.error('???¨ì¼ ?´ë?ì§€ ?…ë¡œ???ˆì™¸:', error)
+          const errorMessage = error instanceof Error ? error.message : '?????†ëŠ” ?¤ë¥˜ê°€ ë°œìƒ?ˆìŠµ?ˆë‹¤.';
+          setCardMessage(`?´ë?ì§€ ?…ë¡œ??ì¤??¤ë¥˜ê°€ ë°œìƒ?ˆìŠµ?ˆë‹¤: ${errorMessage}`)
+        }
+      } else {
+        console.log('?´ë?ì§€ê°€ ? íƒ?˜ì? ?ŠìŒ, ê¸°ì¡´ ?´ë?ì§€ ? ì?')
+        if (editingCardId) {
+          console.log('?˜ì • ëª¨ë“œ: ê¸°ì¡´ ?´ë?ì§€ ? ì?')
+          // ?˜ì • ëª¨ë“œ?ì„œ ???´ë?ì§€ê°€ ?†ìœ¼ë©?ê¸°ì¡´ ?´ë?ì§€ ? ì?
+          imageUrl = cardForm.imagePreview || '/api/placeholder/300/200'
+          allImageUrls = cardForm.imagePreviews || []
+        } else {
+          console.log('?ì„± ëª¨ë“œ: ê¸°ë³¸ ?´ë?ì§€ ?¬ìš©')
+        }
+      }
+      
+      console.log('=== ìµœì¢… ?´ë?ì§€ ?•ë³´ ===')
+      console.log('ë©”ì¸ ?´ë?ì§€ (image):', imageUrl)
+      console.log('ëª¨ë“  ?´ë?ì§€ (images):', allImageUrls)
+      console.log('?˜ì • ëª¨ë“œ:', editingCardId ? '?˜ì •' : '?ì„±')
+      
+      const newExperience = {
+        activityType: cardForm.activityType,
+        title: cardForm.title,
+        titleZh: cardForm.titleZh,
+        description: cardForm.description,
+        descriptionZh: cardForm.descriptionZh,
+        category: finalCategory,
+        maxParticipants: parseInt(cardForm.maxParticipants),
+        participants: 0,
+        daysLeft: Math.max(0, daysLeft), // ?¬ë°”ë¥??¼ìˆ˜ ê³„ì‚°
+        image: imageUrl, // ì²?ë²ˆì§¸ ?´ë?ì§€ (ì¹´ë“œ??
+        images: allImageUrls, // ëª¨ë“  ?´ë?ì§€ (?ì„¸ ?˜ì´ì§€??
+        isNew: false,
+        status: 'recruiting',
+        recruitmentStartDate: cardForm.recruitmentStartDate,
+        recruitmentEndDate: cardForm.recruitmentEndDate,
+        date: cardForm.experienceDate,
+        time: experienceTime,
+        location: cardForm.location,
+        locationZh: cardForm.locationZh,
+        benefits: cardForm.benefits.filter(b => b.trim() !== ''),
+        benefitsZh: cardForm.benefitsZh.filter(b => b.trim() !== ''),
+        requirements: cardForm.requirements.filter(r => r.trim() !== ''),
+        requirementsZh: cardForm.requirementsZh.filter(r => r.trim() !== ''),
+        contact: 'support@naver.com',
+        applications: [],
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now()
+      }
+      
+      if (editingCardId) {
+        // ?˜ì • ëª¨ë“œ
+        const { doc, updateDoc } = await import('firebase/firestore')
+        const experienceRef = doc(db, 'experiences', editingCardId)
+        await updateDoc(experienceRef, {
+          ...newExperience,
+          updatedAt: Timestamp.now()
+        })
+        setCardMessage('ì²´í—˜??ì¹´ë“œê°€ ?±ê³µ?ìœ¼ë¡??˜ì •?˜ì—ˆ?µë‹ˆ??')
+        setEditingCardId(null)
+      } else {
+        // ?ì„± ëª¨ë“œ
+        const experiencesRef = collection(db, 'experiences')
+        const docRef = await addDoc(experiencesRef, newExperience)
+        setCardMessage('ì²´í—˜??ì¹´ë“œê°€ ?±ê³µ?ìœ¼ë¡??ì„±?˜ì—ˆ?µë‹ˆ??')
+      }
+      
+      // ??ì´ˆê¸°??(?˜ì • ?„ë£Œ ?„ì—ë§?
+      if (!editingCardId) {
+        setCardForm({
+          activityType: '',
+          title: '',
+          titleZh: '',
+          category: '',
+          customCategory: '',
+          description: '',
+          descriptionZh: '',
+          maxParticipants: '',
+          experienceDate: '',
+          experienceTimePeriod: '',
+          experienceTimeHour: '',
+          experienceTimeMinute: '',
+          recruitmentStartDate: '',
+          recruitmentEndDate: '',
+          location: '',
+          locationZh: '',
+          benefits: [''],
+          benefitsZh: [''],
+          requirements: [''],
+          requirementsZh: [''],
+          image: null,
+          imagePreview: '',
+          images: [],
+          imagePreviews: []
+        })
+      }
+      setShowCustomCategory(false)
+      
+      // ì²´í—˜??ëª©ë¡ ?ˆë¡œê³ ì¹¨
+      loadAllExperiences()
+      
+    } catch {
+      console.error('ì¹´ë“œ ?ì„± ?¤ë¥˜')
+      setCardMessage('ì¹´ë“œ ?ì„±???¤íŒ¨?ˆìŠµ?ˆë‹¤. ?¤ì‹œ ?œë„?´ì£¼?¸ìš”.')
+    } finally {
+      setCardSubmitting(false)
+    }
+  }, [cardForm, loadAllExperiences, editingCardId])
+
+  // ì¹´ë“œ ?˜ì • ?¸ë“¤??  const handleEditCard = useCallback((experience: Experience) => {
+    // ì¹´ë“œ ?˜ì • ëª¨ë“œë¡??„í™˜
+    setEditingCardId(experience.id)
+    setCardForm({
+      activityType: experience.activityType || '',
+      title: experience.title,
+      titleZh: experience.titleZh || '',
+      category: experience.category,
+      customCategory: '',
+      description: experience.description,
+      descriptionZh: experience.descriptionZh || '',
+      maxParticipants: experience.maxParticipants.toString(),
+      experienceDate: experience.date || '',
+      experienceTimePeriod: '',
+      experienceTimeHour: '',
+      experienceTimeMinute: '',
+      recruitmentStartDate: experience.recruitmentStartDate || '',
+      recruitmentEndDate: experience.recruitmentEndDate || '',
+      location: experience.location || '',
+      locationZh: experience.locationZh || '',
+      benefits: experience.benefits || [''],
+      benefitsZh: experience.benefitsZh || [''],
+      requirements: experience.requirements || [''],
+      requirementsZh: experience.requirementsZh || [''],
+      image: null,
+      imagePreview: experience.image || '',
+      images: [],
+      imagePreviews: experience.images || []
+    })
+    setActiveTab('create-card')
+    setCardMessage('ì¹´ë“œ ?˜ì • ëª¨ë“œ?…ë‹ˆ?? ?´ìš©???˜ì •?˜ê³  ?€?¥í•˜?¸ìš”.')
+  }, [])
+
+  // ì¹´ë“œ ?? œ ?¸ë“¤??  const handleDeleteCard = useCallback(async (experienceId: string) => {
+    if (!confirm('?•ë§ë¡???ì¹´ë“œë¥??? œ?˜ì‹œê² ìŠµ?ˆê¹Œ? ???‘ì—…?€ ?˜ëŒë¦????†ìŠµ?ˆë‹¤.')) {
+      return
+    }
+
+    try {
+      const { doc, deleteDoc } = await import('firebase/firestore')
+      const { db } = await import('@/lib/firebase')
+      
+      await deleteDoc(doc(db, 'experiences', experienceId))
+      setCardMessage('ì¹´ë“œê°€ ?±ê³µ?ìœ¼ë¡??? œ?˜ì—ˆ?µë‹ˆ??')
+      
+      // ì²´í—˜??ëª©ë¡ ?ˆë¡œê³ ì¹¨
+      loadAllExperiences()
+    } catch (error) {
+      console.error('ì¹´ë“œ ?? œ ?¤ë¥˜:', error)
+      setCardMessage('ì¹´ë“œ ?? œ???¤íŒ¨?ˆìŠµ?ˆë‹¤.')
+    }
+  }, [loadAllExperiences])
+
+  // ?œíƒ ì¶”ê?/?? œ
+  const addBenefit = useCallback(() => {
+    setCardForm(prev => ({
+      ...prev,
+      benefits: [...prev.benefits, '']
+    }))
+  }, [])
+
+  const removeBenefit = useCallback((index: number) => {
+    setCardForm(prev => ({
+      ...prev,
+      benefits: prev.benefits.filter((_, i) => i !== index)
+    }))
+  }, [])
+
+  const updateBenefit = useCallback((index: number, value: string) => {
+    setCardForm(prev => ({
+      ...prev,
+      benefits: prev.benefits.map((benefit, i) => i === index ? value : benefit)
+    }))
+  }, [])
+
+  // ì¡°ê±´ ì¶”ê?/?? œ
+  const addRequirement = useCallback(() => {
+    setCardForm(prev => ({
+      ...prev,
+      requirements: [...prev.requirements, '']
+    }))
+  }, [])
+
+  const removeRequirement = useCallback((index: number) => {
+    setCardForm(prev => ({
+      ...prev,
+      requirements: prev.requirements.filter((_, i) => i !== index)
+    }))
+  }, [])
+
+  const updateRequirement = useCallback((index: number, value: string) => {
+    setCardForm(prev => ({
+      ...prev,
+      requirements: prev.requirements.map((requirement, i) => i === index ? value : requirement)
+    }))
+  }, [])
+
+  // ì¤‘êµ­???œíƒ ì¶”ê?/?? œ/?˜ì •
+  const addBenefitZh = useCallback(() => {
+    setCardForm(prev => ({
+      ...prev,
+      benefitsZh: [...prev.benefitsZh, '']
+    }))
+  }, [])
+
+  const removeBenefitZh = useCallback((index: number) => {
+    setCardForm(prev => ({
+      ...prev,
+      benefitsZh: prev.benefitsZh.filter((_, i) => i !== index)
+    }))
+  }, [])
+
+  const updateBenefitZh = useCallback((index: number, value: string) => {
+    setCardForm(prev => ({
+      ...prev,
+      benefitsZh: prev.benefitsZh.map((benefit, i) => i === index ? value : benefit)
+    }))
+  }, [])
+
+  // ì¤‘êµ­??ì¡°ê±´ ì¶”ê?/?? œ/?˜ì •
+  const addRequirementZh = useCallback(() => {
+    setCardForm(prev => ({
+      ...prev,
+      requirementsZh: [...prev.requirementsZh, '']
+    }))
+  }, [])
+
+  const removeRequirementZh = useCallback((index: number) => {
+    setCardForm(prev => ({
+      ...prev,
+      requirementsZh: prev.requirementsZh.filter((_, i) => i !== index)
+    }))
+  }, [])
+
+  const updateRequirementZh = useCallback((index: number, value: string) => {
+    setCardForm(prev => ({
+      ...prev,
+      requirementsZh: prev.requirementsZh.map((requirement, i) => i === index ? value : requirement)
+    }))
+  }, [])
+
+  // ?´ë?ì§€ ?…ë¡œ???¸ë“¤??  const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setCardForm(prev => ({
+        ...prev,
+        image: file,
+        imagePreview: URL.createObjectURL(file)
+      }))
+    }
+  }, [])
+
+  // ?´ë?ì§€ ?œê±° ?¸ë“¤??  const handleImageRemove = useCallback(() => {
+    if (cardForm.imagePreview) {
+      URL.revokeObjectURL(cardForm.imagePreview)
+    }
+    setCardForm(prev => ({
+      ...prev,
+      image: null,
+      imagePreview: ''
+    }))
+  }, [cardForm.imagePreview])
+
+  // ?¬ëŸ¬ ?´ë?ì§€ ?…ë¡œ???¸ë“¤??  const handleMultipleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    if (files.length > 0) {
+      const newPreviews = files.map(file => URL.createObjectURL(file))
+      
+      setCardForm(prev => ({
+        ...prev,
+        images: [...prev.images, ...files],
+        imagePreviews: [...prev.imagePreviews, ...newPreviews],
+        // ì²?ë²ˆì§¸ ?´ë?ì§€??ë©”ì¸ ?´ë?ì§€ë¡œë„ ?¤ì •
+        image: prev.image || files[0],
+        imagePreview: prev.imagePreview || newPreviews[0]
+      }))
+    }
+  }, [])
+
+  // ê°œë³„ ?´ë?ì§€ ?œê±° ?¸ë“¤??  const handleImageRemoveAt = useCallback((index: number) => {
+    setCardForm(prev => {
+      const newImages = [...prev.images]
+      const newPreviews = [...prev.imagePreviews]
+      
+      // URL ?´ì œ
+      URL.revokeObjectURL(newPreviews[index])
+      
+      // ë°°ì—´?ì„œ ?œê±°
+      newImages.splice(index, 1)
+      newPreviews.splice(index, 1)
+      
+      // ë©”ì¸ ?´ë?ì§€ê°€ ?œê±°??ê²½ìš° ì²?ë²ˆì§¸ ?´ë?ì§€ë¡?ë³€ê²?      let newMainImage = prev.image
+      let newMainPreview = prev.imagePreview
+      
+      if (index === 0 && newImages.length > 0) {
+        newMainImage = newImages[0]
+        newMainPreview = newPreviews[0]
+      } else if (newImages.length === 0) {
+        newMainImage = null
+        newMainPreview = ''
+      }
+      
+      return {
+        ...prev,
+        images: newImages,
+        imagePreviews: newPreviews,
+        image: newMainImage,
+        imagePreview: newMainPreview
+      }
+    })
+  }, [])
+
+  // ëª¨ë“  ?´ë?ì§€ ?œê±° ?¸ë“¤??  const handleAllImagesRemove = useCallback(() => {
+    // ëª¨ë“  ë¯¸ë¦¬ë³´ê¸° URL ?´ì œ
+    cardForm.imagePreviews.forEach(url => URL.revokeObjectURL(url))
+    if (cardForm.imagePreview) {
+      URL.revokeObjectURL(cardForm.imagePreview)
+    }
+    
+    setCardForm(prev => ({
+      ...prev,
+      images: [],
+      imagePreviews: [],
+      image: null,
+      imagePreview: ''
+    }))
+  }, [cardForm.imagePreviews, cardForm.imagePreview])
+
+  // ì²´í—˜?¨ë³„ ? ì²­?¸ì› ê°€?¸ì˜¤ê¸?  const loadExperienceApplicationCounts = useCallback(async () => {
+    try {
+      console.log('? ì²­?¸ì› ë¡œë”© ?œì‘, ì²´í—˜????', allExperiences.length)
+      const { doc, getDoc } = await import('firebase/firestore')
+      const { db } = await import('@/lib/firebase')
+      const counts: {[key: string]: number} = {}
+      
+      for (const experience of allExperiences) {
+        console.log(`ì²´í—˜??${experience.id} ? ì²­?¸ì› ë¡œë”© ì¤?..`)
+        try {
+          const experienceRef = doc(db, 'experiences', experience.id)
+          const experienceDoc = await getDoc(experienceRef)
+          
+          if (experienceDoc.exists()) {
+            const data = experienceDoc.data()
+            const applications = data.applications || []
+            counts[experience.id] = applications.length
+            console.log(`ì²´í—˜??${experience.id} ? ì²­?¸ì›:`, applications.length)
+          } else {
+            counts[experience.id] = 0
+            console.log(`ì²´í—˜??${experience.id} ë¬¸ì„œê°€ ì¡´ì¬?˜ì? ?ŠìŒ`)
+          }
+        } catch (expError) {
+          console.error(`ì²´í—˜??${experience.id} ë¡œë”© ?¤ë¥˜:`, expError)
+          counts[experience.id] = 0
+        }
+      }
+      
+      console.log('ìµœì¢… ? ì²­?¸ì› ?°ì´??', counts)
+      setExperienceApplicationCounts(counts)
+    } catch {
+      console.error('ì²´í—˜??? ì²­?¸ì› ë¡œë”© ?¤ë¥˜')
+      // ?¤ë¥˜ ë°œìƒ ??ê¸°ë³¸ê°??¤ì •
+      const defaultCounts: {[key: string]: number} = {}
+      allExperiences.forEach(exp => {
+        defaultCounts[exp.id] = 0
+      })
+      setExperienceApplicationCounts(defaultCounts)
+    }
+  }, [allExperiences])
+
+  const handleApplicationStatusUpdate = useCallback(async (applicationId: string, status: 'pending' | 'approved' | 'rejected') => {
+    try {
+      setApplicationMessage('')
+      const result = await updateApplicationStatus(applicationId, status)
+      if (result.success) {
+        setApplicationMessage('? ì²­???íƒœê°€ ?±ê³µ?ìœ¼ë¡??…ë°?´íŠ¸?˜ì—ˆ?µë‹ˆ??')
+        await loadApplications()
+        await loadApplicationStats()
+      } else {
+        setApplicationMessage('?íƒœ ?…ë°?´íŠ¸???¤íŒ¨?ˆìŠµ?ˆë‹¤.')
+      }
+    } catch {
+      setApplicationMessage('?íƒœ ?…ë°?´íŠ¸ ì¤??¤ë¥˜ê°€ ë°œìƒ?ˆìŠµ?ˆë‹¤.')
+    }
+  }, [loadApplications, loadApplicationStats])
+
+  // ?¹ì¸ ì·¨ì†Œ ?¸ë“¤??  const handleCancelApproval = useCallback(async (applicationId: string) => {
+    try {
+      setApplicationMessage('')
+      const result = await cancelApproval(applicationId)
+      if (result.success) {
+        setApplicationMessage('?¹ì¸??ì·¨ì†Œ?˜ì—ˆ?µë‹ˆ??')
+        await loadApplications()
+        await loadApplicationStats()
+      } else {
+        setApplicationMessage('?¹ì¸ ì·¨ì†Œ???¤íŒ¨?ˆìŠµ?ˆë‹¤.')
+      }
+    } catch {
+      setApplicationMessage('?¹ì¸ ì·¨ì†Œ ì¤??¤ë¥˜ê°€ ë°œìƒ?ˆìŠµ?ˆë‹¤.')
+    }
+  }, [loadApplications, loadApplicationStats])
+
+  // ê±°ë? ì·¨ì†Œ ?¸ë“¤??  const handleCancelRejection = useCallback(async (applicationId: string) => {
+    try {
+      setApplicationMessage('')
+      const result = await cancelRejection(applicationId)
+      if (result.success) {
+        setApplicationMessage('ê±°ë?ê°€ ì·¨ì†Œ?˜ì—ˆ?µë‹ˆ??')
+        await loadApplications()
+        await loadApplicationStats()
+      } else {
+        setApplicationMessage('ê±°ë? ì·¨ì†Œ???¤íŒ¨?ˆìŠµ?ˆë‹¤.')
+      }
+    } catch {
+      setApplicationMessage('ê±°ë? ì·¨ì†Œ ì¤??¤ë¥˜ê°€ ë°œìƒ?ˆìŠµ?ˆë‹¤.')
+    }
+  }, [loadApplications, loadApplicationStats])
+
+  const handleApplicationDelete = useCallback(async (applicationId: string, applicantName: string) => {
+    if (confirm(`${applicantName}??? ì²­?œë? ?? œ?˜ì‹œê² ìŠµ?ˆê¹Œ? ???‘ì—…?€ ?˜ëŒë¦????†ìŠµ?ˆë‹¤.`)) {
+      try {
+        setApplicationMessage('')
+        const result = await deleteApplication(applicationId)
+        if (result.success) {
+          setApplicationMessage('? ì²­?œê? ?±ê³µ?ìœ¼ë¡??? œ?˜ì—ˆ?µë‹ˆ??')
+          await loadApplications()
+          await loadApplicationStats()
+        } else {
+          setApplicationMessage('? ì²­???? œ???¤íŒ¨?ˆìŠµ?ˆë‹¤.')
+        }
+      } catch {
+        setApplicationMessage('? ì²­???? œ ì¤??¤ë¥˜ê°€ ë°œìƒ?ˆìŠµ?ˆë‹¤.')
+      }
+    }
+  }, [loadApplications, loadApplicationStats])
+
+  const handleRoleUpdate = async (userId: string, newRole: UserRole) => {
+    try {
+      setUserMessage('')
+      const result = await updateUserRole(userId, newRole)
+      if (result.success) {
+        setUserMessage('?¬ìš©????• ???±ê³µ?ìœ¼ë¡??…ë°?´íŠ¸?˜ì—ˆ?µë‹ˆ??')
+        await loadUsers() // ?¬ìš©??ëª©ë¡ ?ˆë¡œê³ ì¹¨
+        // setEditingUser(null) // ?¬ìš©?˜ì? ?ŠìŒ
+      } else {
+        setUserMessage('??•  ?…ë°?´íŠ¸???¤íŒ¨?ˆìŠµ?ˆë‹¤.')
+      }
+    } catch {
+      setUserMessage('??•  ?…ë°?´íŠ¸ ì¤??¤ë¥˜ê°€ ë°œìƒ?ˆìŠµ?ˆë‹¤.')
+    }
+  }
+
+  const handleUserDelete = async (userId: string, userName: string) => {
+    if (confirm(`${userName} ?¬ìš©?ë? ?? œ?˜ì‹œê² ìŠµ?ˆê¹Œ? ???‘ì—…?€ ?˜ëŒë¦????†ìŠµ?ˆë‹¤.`)) {
+      try {
+        setUserMessage('')
+        const result = await deleteUser(userId)
+        if (result.success) {
+          setUserMessage('?¬ìš©?ê? ?±ê³µ?ìœ¼ë¡??? œ?˜ì—ˆ?µë‹ˆ??')
+          await loadUsers() // ?¬ìš©??ëª©ë¡ ?ˆë¡œê³ ì¹¨
+        } else {
+          setUserMessage('?¬ìš©???? œ???¤íŒ¨?ˆìŠµ?ˆë‹¤.')
+        }
+      } catch {
+        setUserMessage('?¬ìš©???? œ ì¤??¤ë¥˜ê°€ ë°œìƒ?ˆìŠµ?ˆë‹¤.')
+      }
+    }
+  }
+
+  const handleSeedData = async () => {
+    try {
+      const result = await seedExperiences()
+      if (result.success) {
+        console.log('ì²´í—˜???°ì´?°ê? ?±ê³µ?ìœ¼ë¡??€?¥ë˜?ˆìŠµ?ˆë‹¤!')
+      } else {
+        console.log('?°ì´???€??ì¤??¤ë¥˜ê°€ ë°œìƒ?ˆìŠµ?ˆë‹¤.')
+      }
+    } catch {
+      console.log('?°ì´???€??ì¤??¤ë¥˜ê°€ ë°œìƒ?ˆìŠµ?ˆë‹¤.')
+    }
+  }
+
+  const handleResetData = async () => {
+    try {
+      const result = await resetExperiences()
+      if (result.success) {
+        console.log('ì²´í—˜???°ì´?°ê? ì´ˆê¸°?”ë˜?ˆìŠµ?ˆë‹¤!')
+      } else {
+        console.log('?°ì´??ì´ˆê¸°??ì¤??¤ë¥˜ê°€ ë°œìƒ?ˆìŠµ?ˆë‹¤.')
+      }
+    } catch {
+      console.log('?°ì´??ì´ˆê¸°??ì¤??¤ë¥˜ê°€ ë°œìƒ?ˆìŠµ?ˆë‹¤.')
+    }
+  }
+
+  // ?¬ìš©???°ì´??ë¡œë”©
+  useEffect(() => {
+    if (isAuthenticated && isAdmin) {
+      loadUsers()
+      loadUserStats()
+      loadExperienceData()
+      loadApplications()
+      loadApplicationStats()
+      loadAllExperiences()
+    }
+  }, [isAuthenticated, isAdmin, loadUsers, loadUserStats, loadExperienceData, loadApplications, loadApplicationStats, loadAllExperiences])
+
+  // ì²´í—˜???°ì´?°ê? ë¡œë“œ?˜ë©´ ? ì²­?¸ì›??ë¡œë“œ
+  useEffect(() => {
+    if (allExperiences.length > 0) {
+      loadExperienceApplicationCounts()
+    }
+  }, [allExperiences, loadExperienceApplicationCounts])
+
+  // ? ì²­ ?°ì´?°ê? ë¡œë“œ?˜ë©´ ?µê³„ ?…ë°?´íŠ¸
+  useEffect(() => {
+    if (applications.length > 0) {
+      loadApplicationStats()
+    }
+  }, [applications, loadApplicationStats])
+
+  if (loading || adminLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="flex items-center space-x-2">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
+          <span className="text-gray-600">ê¶Œí•œ ?•ì¸ ì¤?..</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return null
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <Shield className="h-16 w-16 text-red-500 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">?‘ê·¼ ê¶Œí•œ ?†ìŒ</h1>
+          <p className="text-gray-600 mb-4">ê´€ë¦¬ì ê¶Œí•œ???„ìš”???˜ì´ì§€?…ë‹ˆ??</p>
+          <p className="text-sm text-gray-500">?„ì¬ ??• : {userRole === 'advertiser' ? 'ê´‘ê³ ì£? : '?¼ë°˜?Œì›'}</p>
+          <button 
+            onClick={() => router.push('/')}
+            className="mt-4 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+          >
+            ?ˆìœ¼ë¡??Œì•„ê°€ê¸?          </button>
+        </div>
+      </div>
+    )
+  }
+
+  const sidebarItems = [
+    { id: 'dashboard', label: '?€?œë³´??, icon: BarChart3 },
+    { id: 'users', label: '?¬ìš©??ê´€ë¦?, icon: Users },
+    { 
+      id: 'experiences', 
+      label: 'ì²´í—˜??ê´€ë¦?, 
+      icon: Activity,
+      subItems: [
+        { id: 'xiaohongshu-experiences', label: '?¤ì˜¤?ìŠˆ ì²´í—˜??, icon: Activity },
+        { id: 'instagram-experiences', label: '?¸ìŠ¤?€ê·¸ë¨ ì²´í—˜??, icon: Activity }
+      ]
+    },
+    { 
+      id: 'applications', 
+      label: '? ì²­ ê´€ë¦?, 
+      icon: FileText,
+      subItems: [
+        { id: 'xiaohongshu-applications', label: '?¤ì˜¤?ìŠˆ ? ì²­', icon: FileText },
+        { id: 'instagram-applications', label: '?¸ìŠ¤?€ê·¸ë¨ ? ì²­', icon: FileText }
+      ]
+    },
+    { 
+      id: 'create-card', 
+      label: '? ì²­ ì¹´ë“œ ë§Œë“¤ê¸?, 
+      icon: Plus,
+      subItems: [
+        { id: 'xiaohongshu-create-card', label: '?¤ì˜¤?ìŠˆ ì¹´ë“œ', icon: Plus },
+        { id: 'instagram-create-card', label: '?¸ìŠ¤?€ê·¸ë¨ ì¹´ë“œ', icon: Plus }
+      ]
+    },
+    { id: 'edit-cards', label: '? ì²­ ì¹´ë“œ ?˜ì •', icon: FileText },
+    { id: 'excel-export', label: '?…ì²´ë³?ì²´í—˜??? ì²­ë¦¬ìŠ¤??, icon: Download }
+  ]
+
+  // ?¤ì˜¤?ìŠˆ ì²´í—˜??ê´€ë¦??Œë”ë§?  const renderXiaohongshuExperiences = () => {
+    const recruitingExperiences = allExperiences.filter(exp => getStatusByDate(exp) === 'recruiting')
+    const ongoingExperiences = allExperiences.filter(exp => getStatusByDate(exp) === 'ongoing')
+    const completedExperiences = allExperiences.filter(exp => getStatusByDate(exp) === 'completed')
+
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">?¤ì˜¤?ìŠˆ ì²´í—˜??ê´€ë¦?/h2>
+          <p className="text-gray-600">?¤ì˜¤?ìŠˆ ì²´í—˜???œë™??ê´€ë¦¬í•˜?¸ìš”</p>
+        </div>
+        
+        {/* ?¤ì˜¤?ìŠˆ ì²´í—˜???„í™© ?µê³„ */}
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">?¤ì˜¤?ìŠˆ ì²´í—˜???„í™©</h3>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-red-50 p-4 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <Activity className="h-5 w-5 text-red-600" />
+                <span className="text-sm font-medium text-red-800">?„ì²´</span>
+              </div>
+              <p className="text-2xl font-bold text-red-600 mt-2">{experienceStats.total}</p>
+            </div>
+            <div className="bg-green-50 p-4 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <Activity className="h-5 w-5 text-green-600" />
+                <span className="text-sm font-medium text-green-800">ëª¨ì§‘ì¤?/span>
+              </div>
+              <p className="text-2xl font-bold text-green-600 mt-2">{experienceStats.recruiting}</p>
+            </div>
+            <div className="bg-yellow-50 p-4 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <Calendar className="h-5 w-5 text-yellow-600" />
+                <span className="text-sm font-medium text-yellow-800">ì§„í–‰ì¤?/span>
+              </div>
+              <p className="text-2xl font-bold text-yellow-600 mt-2">{experienceStats.ongoing}</p>
+            </div>
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <Shield className="h-5 w-5 text-gray-600" />
+                <span className="text-sm font-medium text-gray-800">?„ë£Œ</span>
+              </div>
+              <p className="text-2xl font-bold text-gray-600 mt-2">{experienceStats.completed}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* ?¤ì˜¤?ìŠˆ ì²´í—˜??ëª©ë¡ */}
+        <div className="bg-white rounded-xl shadow-sm">
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">?¤ì˜¤?ìŠˆ ì²´í—˜??ëª©ë¡</h3>
+              <span className="text-sm text-gray-500">{allExperiences.length}ê°?/span>
+            </div>
+          </div>
+          <div className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {allExperiences.map((experience) => (
+                <div key={experience.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                  <div className="flex items-start justify-between mb-3">
+                    <h4 className="text-lg font-semibold text-gray-900 line-clamp-2">{experience.title}</h4>
+                    <span className={`text-xs px-2 py-1 rounded-full ${
+                      getStatusByDate(experience) === 'recruiting' ? 'bg-green-100 text-green-800' :
+                      getStatusByDate(experience) === 'ongoing' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {getStatusByDate(experience) === 'recruiting' ? 'ëª¨ì§‘ì¤? :
+                       getStatusByDate(experience) === 'ongoing' ? 'ì§„í–‰ì¤? : '?„ë£Œ'}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-3 line-clamp-2">{experience.description}</p>
+                  <div className="flex items-center justify-between text-sm text-gray-500 mb-3">
+                    <span className="font-medium text-red-600">
+                      {experienceApplicationCounts[experience.id] !== undefined 
+                        ? `${experienceApplicationCounts[experience.id]} / ${experience.maxParticipants}ëª?ëª¨ì§‘`
+                        : '? ì²­?¸ì› ë¡œë”©ì¤?..'
+                      }
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm text-gray-500 mb-3">
+                    <span>{experience.location}</span>
+                    <span>{experience.visitDate}</span>
+                  </div>
+                  
+                  {/* ?íƒœ ?˜ì • ë°??? œ ë²„íŠ¼ */}
+                  <div className="flex items-center space-x-2">
+                    <select
+                      onChange={(e) => handleExperienceStatusUpdate(experience.id, e.target.value as 'recruiting' | 'ongoing' | 'completed')}
+                      className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      defaultValue={getStatusByDate(experience)}
+                    >
+                      <option value="recruiting">ëª¨ì§‘ì¤?/option>
+                      <option value="ongoing">ì§„í–‰ì¤?/option>
+                      <option value="completed">?„ë£Œ</option>
+                    </select>
+                    <button
+                      onClick={() => handleExperienceDelete(experience.id, experience.title)}
+                      className="px-2 py-1 text-xs bg-red-100 text-red-600 rounded hover:bg-red-200 transition-colors"
+                    >
+                      ?? œ
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ?¸ìŠ¤?€ê·¸ë¨ ì²´í—˜??ê´€ë¦??Œë”ë§?  const renderInstagramExperiences = () => {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">?¸ìŠ¤?€ê·¸ë¨ ì²´í—˜??ê´€ë¦?/h2>
+          <p className="text-gray-600">?¸ìŠ¤?€ê·¸ë¨ ì²´í—˜???œë™??ê´€ë¦¬í•˜?¸ìš”</p>
+        </div>
+        
+        {/* ?¸ìŠ¤?€ê·¸ë¨ ì²´í—˜???„í™© ?µê³„ */}
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">?¸ìŠ¤?€ê·¸ë¨ ì²´í—˜???„í™©</h3>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-pink-50 p-4 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <Activity className="h-5 w-5 text-pink-600" />
+                <span className="text-sm font-medium text-pink-800">?„ì²´</span>
+              </div>
+              <p className="text-2xl font-bold text-pink-600 mt-2">{instagramStats.total}</p>
+            </div>
+            <div className="bg-green-50 p-4 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <Activity className="h-5 w-5 text-green-600" />
+                <span className="text-sm font-medium text-green-800">ëª¨ì§‘ì¤?/span>
+              </div>
+              <p className="text-2xl font-bold text-green-600 mt-2">{instagramStats.recruiting}</p>
+            </div>
+            <div className="bg-yellow-50 p-4 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <Calendar className="h-5 w-5 text-yellow-600" />
+                <span className="text-sm font-medium text-yellow-800">ì§„í–‰ì¤?/span>
+              </div>
+              <p className="text-2xl font-bold text-yellow-600 mt-2">{instagramStats.ongoing}</p>
+            </div>
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <Shield className="h-5 w-5 text-gray-600" />
+                <span className="text-sm font-medium text-gray-800">?„ë£Œ</span>
+              </div>
+              <p className="text-2xl font-bold text-gray-600 mt-2">{instagramStats.completed}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* ?¸ìŠ¤?€ê·¸ë¨ ì²´í—˜??ëª©ë¡ */}
+        <div className="bg-white rounded-xl shadow-sm">
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">?¸ìŠ¤?€ê·¸ë¨ ì²´í—˜??ëª©ë¡</h3>
+              <span className="text-sm text-gray-500">0ê°?/span>
+            </div>
+          </div>
+          <div className="p-6">
+            <div className="text-center py-12">
+              <Activity className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">?¸ìŠ¤?€ê·¸ë¨ ì²´í—˜?¨ì´ ?†ìŠµ?ˆë‹¤</h3>
+              <p className="text-gray-500">?ˆë¡œ???¸ìŠ¤?€ê·¸ë¨ ì²´í—˜?¨ì„ ?ì„±?´ë³´?¸ìš”.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ?¤ì˜¤?ìŠˆ ? ì²­ ê´€ë¦??Œë”ë§?  const renderXiaohongshuApplications = () => {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">?¤ì˜¤?ìŠˆ ? ì²­ ê´€ë¦?/h2>
+          <p className="text-gray-600">?¤ì˜¤?ìŠˆ ì²´í—˜??? ì²­ ?„í™©??ê´€ë¦¬í•˜?¸ìš”</p>
+        </div>
+        
+        {/* ?¤ì˜¤?ìŠˆ ? ì²­ ?„í™© ?µê³„ */}
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">?¤ì˜¤?ìŠˆ ? ì²­ ?„í™©</h3>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-red-50 p-4 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <FileText className="h-5 w-5 text-red-600" />
+                <span className="text-sm font-medium text-red-800">?„ì²´ ? ì²­</span>
+              </div>
+              <p className="text-2xl font-bold text-red-600 mt-2">{applications.length}</p>
+            </div>
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <Users className="h-5 w-5 text-blue-600" />
+                <span className="text-sm font-medium text-blue-800">? ê·œ ? ì²­</span>
+              </div>
+              <p className="text-2xl font-bold text-blue-600 mt-2">{applicationStats.todayApplications}</p>
+            </div>
+            <div className="bg-green-50 p-4 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <Activity className="h-5 w-5 text-green-600" />
+                <span className="text-sm font-medium text-green-800">?´ë²ˆ ì£?/span>
+              </div>
+              <p className="text-2xl font-bold text-green-600 mt-2">{applicationStats.thisWeekApplications}</p>
+            </div>
+            <div className="bg-yellow-50 p-4 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <Calendar className="h-5 w-5 text-yellow-600" />
+                <span className="text-sm font-medium text-yellow-800">?´ë²ˆ ??/span>
+              </div>
+              <p className="text-2xl font-bold text-yellow-600 mt-2">{applicationStats.thisMonthApplications}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* ?¤ì˜¤?ìŠˆ ? ì²­ ëª©ë¡ */}
+        <div className="bg-white rounded-xl shadow-sm">
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">?¤ì˜¤?ìŠˆ ? ì²­ ëª©ë¡</h3>
+              <span className="text-sm text-gray-500">{applications.length}ê°?/span>
+            </div>
+          </div>
+          <div className="p-6">
+            {applicationsLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
+                <span className="ml-2 text-gray-600">? ì²­??ë¶ˆëŸ¬?¤ëŠ” ì¤?..</span>
+              </div>
+            ) : applications.length === 0 ? (
+              <div className="text-center py-8">
+                <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500">? ì²­???†ìŠµ?ˆë‹¤</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {applications.map((application) => (
+                  <div key={application.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                    <div className="mb-3">
+                      <h4 className="font-semibold text-gray-900">{application.name}</h4>
+                      <p className="text-sm text-gray-600">{application.email}</p>
+                      <p className="text-sm text-gray-500">{application.phone}</p>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center space-x-4">
+                        <div>
+                          <span className="font-medium text-gray-700">ì²´í—˜?? </span>
+                          <span className="text-gray-600">{application.experienceTitle}</span>
+                        </div>
+                        <div>
+                          <span className="font-medium text-gray-700">ë°©ë¬¸?? </span>
+                          <span className="text-gray-600">{application.visitDate}</span>
+                        </div>
+                      </div>
+                      <span className="text-xs text-gray-500">
+                        {application.createdAt ? 
+                          (application.createdAt instanceof Date ? 
+                            application.createdAt.toLocaleDateString('ko-KR') : 
+                            typeof application.createdAt === 'object' && 'toDate' in application.createdAt ?
+                              application.createdAt.toDate().toLocaleDateString('ko-KR') :
+                              new Date(application.createdAt).toLocaleDateString('ko-KR')) : 
+                          '? ì§œ ?†ìŒ'}
+                      </span>
+                    </div>
+                    <div className="mt-3 flex items-center space-x-2">
+                      <button
+                        onClick={() => handleApplicationDelete(application.id, application.name)}
+                        className="px-3 py-1 text-xs bg-red-100 text-red-600 rounded hover:bg-red-200 transition-colors"
+                      >
+                        ?? œ
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ?¸ìŠ¤?€ê·¸ë¨ ? ì²­ ê´€ë¦??Œë”ë§?  const renderInstagramApplications = () => {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">?¸ìŠ¤?€ê·¸ë¨ ? ì²­ ê´€ë¦?/h2>
+          <p className="text-gray-600">?¸ìŠ¤?€ê·¸ë¨ ì²´í—˜??? ì²­ ?„í™©??ê´€ë¦¬í•˜?¸ìš”</p>
+        </div>
+        
+        {/* ?¸ìŠ¤?€ê·¸ë¨ ? ì²­ ?„í™© ?µê³„ */}
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">?¸ìŠ¤?€ê·¸ë¨ ? ì²­ ?„í™©</h3>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-pink-50 p-4 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <FileText className="h-5 w-5 text-pink-600" />
+                <span className="text-sm font-medium text-pink-800">?„ì²´ ? ì²­</span>
+              </div>
+              <p className="text-2xl font-bold text-pink-600 mt-2">0</p>
+            </div>
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <Users className="h-5 w-5 text-blue-600" />
+                <span className="text-sm font-medium text-blue-800">? ê·œ ? ì²­</span>
+              </div>
+              <p className="text-2xl font-bold text-blue-600 mt-2">0</p>
+            </div>
+            <div className="bg-green-50 p-4 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <Activity className="h-5 w-5 text-green-600" />
+                <span className="text-sm font-medium text-green-800">?´ë²ˆ ì£?/span>
+              </div>
+              <p className="text-2xl font-bold text-green-600 mt-2">0</p>
+            </div>
+            <div className="bg-yellow-50 p-4 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <Calendar className="h-5 w-5 text-yellow-600" />
+                <span className="text-sm font-medium text-yellow-800">?´ë²ˆ ??/span>
+              </div>
+              <p className="text-2xl font-bold text-yellow-600 mt-2">0</p>
+            </div>
+          </div>
+        </div>
+
+        {/* ?¸ìŠ¤?€ê·¸ë¨ ? ì²­ ëª©ë¡ */}
+        <div className="bg-white rounded-xl shadow-sm">
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">?¸ìŠ¤?€ê·¸ë¨ ? ì²­ ëª©ë¡</h3>
+              <span className="text-sm text-gray-500">0ê°?/span>
+            </div>
+          </div>
+          <div className="p-6">
+            <div className="text-center py-12">
+              <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">?¸ìŠ¤?€ê·¸ë¨ ? ì²­???†ìŠµ?ˆë‹¤</h3>
+              <p className="text-gray-500">?¸ìŠ¤?€ê·¸ë¨ ì²´í—˜??? ì²­???¤ì–´?¤ë©´ ?¬ê¸°???œì‹œ?©ë‹ˆ??</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ?¤ì˜¤?ìŠˆ ì¹´ë“œ ë§Œë“¤ê¸??Œë”ë§?  const renderXiaohongshuCreateCard = () => {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">?¤ì˜¤?ìŠˆ ? ì²­ ì¹´ë“œ ë§Œë“¤ê¸?/h2>
+          <p className="text-gray-600">?¤ì˜¤?ìŠˆ ì²´í—˜??? ì²­ ì¹´ë“œë¥??ì„±?˜ì„¸??/p>
+        </div>
+        
+        {/* ê¸°ì¡´ ì¹´ë“œ ë§Œë“¤ê¸??¼ì„ ?¬ê¸°??ë³µì‚¬ */}
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <form onSubmit={handleCardSubmit} className="space-y-6">
+            {/* ?œë™ ? í˜• */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">?œë™ ? í˜•</label>
+              <select
+                value={cardForm.activityType}
+                onChange={(e) => setCardForm(prev => ({ ...prev, activityType: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                required
+              >
+                <option value="">?œë™ ? í˜•??? íƒ?˜ì„¸??/option>
+                <option value="restaurant">ë§›ì§‘ ì²´í—˜</option>
+                <option value="cafe">ì¹´í˜ ì²´í—˜</option>
+                <option value="shopping">?¼í•‘ ì²´í—˜</option>
+                <option value="beauty">ë·°í‹° ì²´í—˜</option>
+                <option value="travel">?¬í–‰ ì²´í—˜</option>
+                <option value="culture">ë¬¸í™” ì²´í—˜</option>
+                <option value="other">ê¸°í?</option>
+              </select>
+            </div>
+
+            {/* ?œëª© */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">?œëª©</label>
+              <input
+                type="text"
+                value={cardForm.title}
+                onChange={(e) => setCardForm(prev => ({ ...prev, title: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                placeholder="ì²´í—˜???œëª©???…ë ¥?˜ì„¸??
+                required
+              />
+            </div>
+
+            {/* ?¤ëª… */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">?¤ëª…</label>
+              <textarea
+                value={cardForm.description}
+                onChange={(e) => setCardForm(prev => ({ ...prev, description: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                rows={4}
+                placeholder="ì²´í—˜?¨ì— ?€???ì„¸???¤ëª…???…ë ¥?˜ì„¸??
+                required
+              />
+            </div>
+
+            {/* ?„ì¹˜ */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">?„ì¹˜</label>
+              <input
+                type="text"
+                value={cardForm.location}
+                onChange={(e) => setCardForm(prev => ({ ...prev, location: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                placeholder="ì²´í—˜ ?¥ì†Œë¥??…ë ¥?˜ì„¸??
+                required
+              />
+            </div>
+
+            {/* ë°©ë¬¸ ? ì§œ */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">ë°©ë¬¸ ? ì§œ</label>
+              <input
+                type="date"
+                value={cardForm.visitDate}
+                onChange={(e) => setCardForm(prev => ({ ...prev, visitDate: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                required
+              />
+            </div>
+
+            {/* ìµœë? ì°¸ì—¬????*/}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">ìµœë? ì°¸ì—¬????/label>
+              <input
+                type="number"
+                value={cardForm.maxParticipants}
+                onChange={(e) => setCardForm(prev => ({ ...prev, maxParticipants: parseInt(e.target.value) }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                min="1"
+                required
+              />
+            </div>
+
+            {/* ?œíƒ */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">?œíƒ</label>
+              {cardForm.benefits.map((benefit, index) => (
+                <div key={index} className="flex items-center space-x-2 mb-2">
+                  <input
+                    type="text"
+                    value={benefit}
+                    onChange={(e) => {
+                      const newBenefits = [...cardForm.benefits]
+                      newBenefits[index] = e.target.value
+                      setCardForm(prev => ({ ...prev, benefits: newBenefits }))
+                    }}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                    placeholder="?œíƒ???…ë ¥?˜ì„¸??
+                  />
+                  {cardForm.benefits.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeBenefit(index)}
+                      className="px-3 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
+                    >
+                      ?? œ
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={addBenefit}
+                className="px-4 py-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition-colors"
+              >
+                ?œíƒ ì¶”ê?
+              </button>
+            </div>
+
+            {/* ì¡°ê±´ */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">ì°¸ì—¬ ì¡°ê±´</label>
+              {cardForm.requirements.map((requirement, index) => (
+                <div key={index} className="flex items-center space-x-2 mb-2">
+                  <input
+                    type="text"
+                    value={requirement}
+                    onChange={(e) => {
+                      const newRequirements = [...cardForm.requirements]
+                      newRequirements[index] = e.target.value
+                      setCardForm(prev => ({ ...prev, requirements: newRequirements }))
+                    }}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                    placeholder="ì°¸ì—¬ ì¡°ê±´???…ë ¥?˜ì„¸??
+                  />
+                  {cardForm.requirements.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeRequirement(index)}
+                      className="px-3 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
+                    >
+                      ?? œ
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={addRequirement}
+                className="px-4 py-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition-colors"
+              >
+                ì¡°ê±´ ì¶”ê?
+              </button>
+            </div>
+
+            {/* ?œì¶œ ë²„íŠ¼ */}
+            <div className="flex justify-end space-x-4">
+              <button
+                type="button"
+                onClick={() => setCardForm({
+                  activityType: '',
+                  title: '',
+                  description: '',
+                  location: '',
+                  visitDate: '',
+                  maxParticipants: 10,
+                  benefits: [''],
+                  requirements: [''],
+                  benefitsZh: [''],
+                  requirementsZh: ['']
+                })}
+                className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                ì´ˆê¸°??              </button>
+              <button
+                type="submit"
+                disabled={cardLoading}
+                className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+              >
+                {cardLoading ? '?ì„± ì¤?..' : 'ì¹´ë“œ ?ì„±'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    )
+  }
+
+  // ?¸ìŠ¤?€ê·¸ë¨ ì¹´ë“œ ë§Œë“¤ê¸??Œë”ë§?  const renderInstagramCreateCard = () => {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">?¸ìŠ¤?€ê·¸ë¨ ? ì²­ ì¹´ë“œ ë§Œë“¤ê¸?/h2>
+          <p className="text-gray-600">?¸ìŠ¤?€ê·¸ë¨ ì²´í—˜??? ì²­ ì¹´ë“œë¥??ì„±?˜ì„¸??/p>
+        </div>
+        
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="text-center py-12">
+            <Plus className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">?¸ìŠ¤?€ê·¸ë¨ ì¹´ë“œ ë§Œë“¤ê¸?/h3>
+            <p className="text-gray-500">?¸ìŠ¤?€ê·¸ë¨ ?„ìš© ì¹´ë“œ ë§Œë“¤ê¸?ê¸°ëŠ¥?€ ì¤€ë¹?ì¤‘ì…?ˆë‹¤.</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const renderContent = () => {
+    // ?œë¸Œ ??´ ?ˆìœ¼ë©??œë¸Œ ??„ ?°ì„  ì²˜ë¦¬
+    if (activeSubTab) {
+      switch (activeSubTab) {
+        case 'xiaohongshu-experiences':
+          return renderXiaohongshuExperiences()
+        case 'instagram-experiences':
+          return renderInstagramExperiences()
+        case 'xiaohongshu-applications':
+          return renderXiaohongshuApplications()
+        case 'instagram-applications':
+          return renderInstagramApplications()
+        case 'xiaohongshu-create-card':
+          return renderXiaohongshuCreateCard()
+        case 'instagram-create-card':
+          return renderInstagramCreateCard()
+        default:
+          break
+      }
+    }
+
+    switch (activeTab) {
+      case 'dashboard':
+        return (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">?€?œë³´??/h2>
+                <p className="text-gray-600">?œìŠ¤???„í™©???œëˆˆ???•ì¸?˜ì„¸??/p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={async () => {
+                    console.log('=== ?°ì´???•ì¸ ?œì‘ ===')
+                    try {
+                      // Firestore ì§ì ‘ ì¡°íšŒ
+                      const { collection, getDocs } = await import('firebase/firestore')
+                      const { db } = await import('@/lib/firebase')
+                      
+                      // experiences ì»¬ë ‰???•ì¸
+                      const experiencesRef = collection(db, 'experiences')
+                      const experiencesSnapshot = await getDocs(experiencesRef)
+                      console.log('experiences ì»¬ë ‰??ë¬¸ì„œ ??', experiencesSnapshot.docs.length)
+                      experiencesSnapshot.docs.forEach((doc, index) => {
+                        const data = doc.data()
+                        console.log(`ì²´í—˜??${index + 1}:`, { 
+                          id: doc.id, 
+                          title: data.title, 
+                          applicationsCount: data.applications?.length || 0,
+                          applications: data.applications
+                        })
+                      })
+                    } catch (error) {
+                      console.error('?°ì´???•ì¸ ?¤ë¥˜:', error)
+                    }
+                  }}
+                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+                >
+                  ?” ?°ì´???•ì¸
+                </button>
+                <button
+                  onClick={() => {
+                    loadApplications()
+                    loadApplicationStats()
+                    loadUsers()
+                    loadUserStats()
+                  }}
+                  disabled={applicationsLoading}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                  <RefreshCw className={`h-4 w-4 ${applicationsLoading ? 'animate-spin' : ''}`} />
+                  {applicationsLoading ? 'ë¡œë”© ì¤?..' : '?„ì²´ ?ˆë¡œê³ ì¹¨'}
+                </button>
+              </div>
+            </div>
+            
+            {/* ?µê³„ ì¹´ë“œ */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-6 rounded-xl text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-blue-100 text-sm font-medium">ì´??¬ìš©??/p>
+                    <p className="text-3xl font-bold">{userStats.totalUsers}</p>
+                  </div>
+                  <Users className="h-8 w-8 text-blue-200" />
+                </div>
+              </div>
+              
+              <div className="bg-gradient-to-r from-green-500 to-green-600 p-6 rounded-xl text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-green-100 text-sm font-medium">?¤ëŠ˜ ê°€??/p>
+                    <p className="text-3xl font-bold">{userStats.todayUsers}</p>
+                  </div>
+                  <UserCheck className="h-8 w-8 text-green-200" />
+                </div>
+              </div>
+              
+              <div className="bg-gradient-to-r from-purple-500 to-purple-600 p-6 rounded-xl text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-purple-100 text-sm font-medium">?´ë²ˆ ì£?ê°€??/p>
+                    <p className="text-3xl font-bold">{userStats.thisWeekUsers}</p>
+                  </div>
+                  <TrendingUp className="h-8 w-8 text-purple-200" />
+                </div>
+              </div>
+              
+              <div className="bg-gradient-to-r from-orange-500 to-orange-600 p-6 rounded-xl text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-orange-100 text-sm font-medium">ì´?? ì²­</p>
+                    <p className="text-3xl font-bold">{applicationStats.total}</p>
+                  </div>
+                  <FileText className="h-8 w-8 text-orange-200" />
+                </div>
+              </div>
+            </div>
+
+            {/* ? ì²­ ?íƒœë³??µê³„ */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <div className="flex items-center">
+                  <div className="p-3 bg-yellow-100 rounded-lg">
+                    <Clock className="h-6 w-6 text-yellow-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">?€ê¸°ì¤‘</p>
+                    <p className="text-2xl font-bold text-gray-900">{applicationStats.pending}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <div className="flex items-center">
+                  <div className="p-3 bg-green-100 rounded-lg">
+                    <CheckCircle className="h-6 w-6 text-green-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">?¹ì¸</p>
+                    <p className="text-2xl font-bold text-gray-900">{applicationStats.approved}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <div className="flex items-center">
+                  <div className="p-3 bg-red-100 rounded-lg">
+                    <XCircle className="h-6 w-6 text-red-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">ê±°ì ˆ</p>
+                    <p className="text-2xl font-bold text-gray-900">{applicationStats.rejected}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ?¤ì˜¤?ìŠˆ ì²´í—˜???„í™© ?µê³„ */}
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">?¤ì˜¤?ìŠˆ ì²´í—˜???„í™©</h3>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="bg-red-50 p-4 rounded-lg">
+                  <div className="flex items-center space-x-2">
+                    <Activity className="h-5 w-5 text-red-600" />
+                    <span className="text-sm font-medium text-red-800">?„ì²´</span>
+                  </div>
+                  <p className="text-2xl font-bold text-red-600 mt-2">{experienceStats.total}</p>
+                </div>
+                <div className="bg-green-50 p-4 rounded-lg">
+                  <div className="flex items-center space-x-2">
+                    <Activity className="h-5 w-5 text-green-600" />
+                    <span className="text-sm font-medium text-green-800">ëª¨ì§‘ì¤?/span>
+                  </div>
+                  <p className="text-2xl font-bold text-green-600 mt-2">{experienceStats.recruiting}</p>
+                </div>
+                <div className="bg-yellow-50 p-4 rounded-lg">
+                  <div className="flex items-center space-x-2">
+                    <Calendar className="h-5 w-5 text-yellow-600" />
+                    <span className="text-sm font-medium text-yellow-800">ì§„í–‰ì¤?/span>
+                  </div>
+                  <p className="text-2xl font-bold text-yellow-600 mt-2">{experienceStats.ongoing}</p>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="flex items-center space-x-2">
+                    <Shield className="h-5 w-5 text-gray-600" />
+                    <span className="text-sm font-medium text-gray-800">?„ë£Œ</span>
+                  </div>
+                  <p className="text-2xl font-bold text-gray-600 mt-2">{experienceStats.completed}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* ?¤ì˜¤?ìŠˆ ì²´í—˜???•ë³´ */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* ?¤ì˜¤?ìŠˆ ìµœê·¼ ì²´í—˜??ëª©ë¡ */}
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">?¤ì˜¤?ìŠˆ ìµœê·¼ ì²´í—˜??/h3>
+                  <span className="text-sm text-gray-500">{recentExperiences.length}ê°?/span>
+                </div>
+                <div className="space-y-3">
+                  {recentExperiences.length === 0 ? (
+                    <div className="text-center py-4">
+                      <Activity className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm text-gray-500">ì²´í—˜?¨ì´ ?†ìŠµ?ˆë‹¤</p>
+                    </div>
+                  ) : (
+                    recentExperiences.map((experience) => (
+                      <div key={experience.id} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                        <div className={`w-3 h-3 rounded-full ${
+                          getStatusByDate(experience) === 'recruiting' ? 'bg-green-500' :
+                          getStatusByDate(experience) === 'ongoing' ? 'bg-yellow-500' : 'bg-gray-500'
+                        }`}></div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">{experience.title}</p>
+                          <p className="text-xs text-gray-500">
+                            {experienceApplicationCounts[experience.id] !== undefined 
+                              ? `${experienceApplicationCounts[experience.id]}/${experience.maxParticipants}ëª?ì°¸ì—¬`
+                              : 'ë¡œë”©ì¤?..'
+                            }
+                          </p>
+                        </div>
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          getStatusByDate(experience) === 'recruiting' ? 'bg-green-100 text-green-800' :
+                          getStatusByDate(experience) === 'ongoing' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {getStatusByDate(experience) === 'recruiting' ? 'ëª¨ì§‘ì¤? :
+                           getStatusByDate(experience) === 'ongoing' ? 'ì§„í–‰ì¤? : '?„ë£Œ'}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* ?¤ì˜¤?ìŠˆ ?¤ëŠ˜ ë°©ë¬¸?˜ëŠ” ì²´í—˜??*/}
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">?¤ì˜¤?ìŠˆ ?¤ëŠ˜ ë°©ë¬¸</h3>
+                  <span className="text-sm text-gray-500">{todayExperiences.length}ê°?/span>
+                </div>
+                <div className="space-y-3">
+                  {todayExperiences.length === 0 ? (
+                    <div className="text-center py-4">
+                      <Calendar className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm text-gray-500">?¤ëŠ˜ ë°©ë¬¸??ì²´í—˜?¨ì´ ?†ìŠµ?ˆë‹¤</p>
+                    </div>
+                  ) : (
+                    todayExperiences.map((experience) => (
+                      <div key={experience.id} className="flex items-center space-x-3 p-3 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors">
+                        <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">{experience.title}</p>
+                          <p className="text-xs text-gray-500">
+                            {experienceApplicationCounts[experience.id] !== undefined 
+                              ? `${experienceApplicationCounts[experience.id]}/${experience.maxParticipants}ëª?ì°¸ì—¬`
+                              : 'ë¡œë”©ì¤?..'
+                            }
+                          </p>
+                          <p className="text-xs text-gray-500">{experience.daysLeft === 0 ? '?¤ëŠ˜ ë§ˆê°' : `${experience.daysLeft}???¨ìŒ`}</p>
+                        </div>
+                        <span className="text-xs px-2 py-1 rounded-full bg-orange-100 text-orange-800">
+                          ê¸´ê¸‰
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* ?¸ìŠ¤?€ê·¸ë¨ ì²´í—˜???„í™© ?µê³„ */}
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">?¸ìŠ¤?€ê·¸ë¨ ì²´í—˜???„í™©</h3>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="bg-pink-50 p-4 rounded-lg">
+                  <div className="flex items-center space-x-2">
+                    <Activity className="h-5 w-5 text-pink-600" />
+                    <span className="text-sm font-medium text-pink-800">?„ì²´</span>
+                  </div>
+                  <p className="text-2xl font-bold text-pink-600 mt-2">{instagramStats.total}</p>
+                </div>
+                <div className="bg-green-50 p-4 rounded-lg">
+                  <div className="flex items-center space-x-2">
+                    <Activity className="h-5 w-5 text-green-600" />
+                    <span className="text-sm font-medium text-green-800">ëª¨ì§‘ì¤?/span>
+                  </div>
+                  <p className="text-2xl font-bold text-green-600 mt-2">{instagramStats.recruiting}</p>
+                </div>
+                <div className="bg-yellow-50 p-4 rounded-lg">
+                  <div className="flex items-center space-x-2">
+                    <Calendar className="h-5 w-5 text-yellow-600" />
+                    <span className="text-sm font-medium text-yellow-800">ì§„í–‰ì¤?/span>
+                  </div>
+                  <p className="text-2xl font-bold text-yellow-600 mt-2">{instagramStats.ongoing}</p>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="flex items-center space-x-2">
+                    <Shield className="h-5 w-5 text-gray-600" />
+                    <span className="text-sm font-medium text-gray-800">?„ë£Œ</span>
+                  </div>
+                  <p className="text-2xl font-bold text-gray-600 mt-2">{instagramStats.completed}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* ?¸ìŠ¤?€ê·¸ë¨ ì²´í—˜???•ë³´ */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* ?¸ìŠ¤?€ê·¸ë¨ ìµœê·¼ ì²´í—˜??ëª©ë¡ */}
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">?¸ìŠ¤?€ê·¸ë¨ ìµœê·¼ ì²´í—˜??/h3>
+                  <span className="text-sm text-gray-500">0ê°?/span>
+                </div>
+                <div className="space-y-3">
+                  <div className="text-center py-4">
+                    <Activity className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                    <p className="text-sm text-gray-500">?¸ìŠ¤?€ê·¸ë¨ ì²´í—˜?¨ì´ ?†ìŠµ?ˆë‹¤</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* ?¸ìŠ¤?€ê·¸ë¨ ?¤ëŠ˜ ë°©ë¬¸?˜ëŠ” ì²´í—˜??*/}
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">?¸ìŠ¤?€ê·¸ë¨ ?¤ëŠ˜ ë°©ë¬¸</h3>
+                  <span className="text-sm text-gray-500">0ê°?/span>
+                </div>
+                <div className="space-y-3">
+                  <div className="text-center py-4">
+                    <Calendar className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                    <p className="text-sm text-gray-500">?¤ëŠ˜ ë°©ë¬¸???¸ìŠ¤?€ê·¸ë¨ ì²´í—˜?¨ì´ ?†ìŠµ?ˆë‹¤</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+
+      case 'users':
+        return (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">?¬ìš©??ê´€ë¦?/h2>
+                <p className="text-gray-600">?±ë¡???¬ìš©?ë“¤??ê´€ë¦¬í•˜?¸ìš”</p>
+              </div>
+              <button 
+                onClick={loadUsers}
+                disabled={usersLoading}
+                className="flex items-center space-x-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+              >
+                <RefreshCw className={`h-4 w-4 ${usersLoading ? 'animate-spin' : ''}`} />
+                <span>{usersLoading ? 'ë¡œë”© ì¤?..' : '?ˆë¡œê³ ì¹¨'}</span>
+              </button>
+            </div>
+
+            {/* ê´€ë¦¬ì ?•ë³´ */}
+            <div className="bg-gradient-to-r from-red-500 to-pink-500 rounded-xl p-6 text-white">
+              <div className="flex items-center space-x-4">
+                <div className="w-12 h-12 rounded-full bg-white bg-opacity-20 flex items-center justify-center">
+                  <Shield className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold">ê´€ë¦¬ì</h3>
+                  <p className="text-red-100">{user?.email}</p>
+                  <p className="text-sm text-red-200">?œìŠ¤??ê´€ë¦¬ì ê¶Œí•œ</p>
+                </div>
+              </div>
+            </div>
+
+            {/* ë©”ì‹œì§€ ?œì‹œ */}
+            {userMessage && (
+              <div className={`p-4 rounded-lg ${
+                userMessage.includes('?±ê³µ') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+              }`}>
+                {userMessage}
+              </div>
+            )}
+
+            {usersLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="flex items-center space-x-2">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-red-600"></div>
+                  <span className="text-gray-600">?¬ìš©??ëª©ë¡??ë¶ˆëŸ¬?¤ëŠ” ì¤?..</span>
+                </div>
+              </div>
+            ) : users.length === 0 ? (
+              <div className="text-center py-12">
+                <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500">?±ë¡???¬ìš©?ê? ?†ìŠµ?ˆë‹¤</p>
+              </div>
+            ) : (
+              <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900">?¬ìš©??ëª©ë¡ ({users.length}ëª?</h3>
+                </div>
+                <div className="divide-y divide-gray-200">
+                  {users.map((user) => (
+                    <div key={user.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
+                            <span className="text-white font-medium text-sm">
+                              {user.displayName?.charAt(0)?.toUpperCase() || 'U'}
+                            </span>
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900">{user.displayName || '?´ë¦„ ?†ìŒ'}</p>
+                            <p className="text-sm text-gray-500">{user.email}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-4">
+                          <div className="text-right">
+                            <p className="text-sm text-gray-500">
+                              {user.createdAt ? 
+                                (user.createdAt instanceof Date ? 
+                                  user.createdAt.toLocaleDateString('ko-KR') : 
+                                  new Date(user.createdAt).toLocaleDateString('ko-KR')) : 
+                                '? ì§œ ?†ìŒ'}
+                            </p>
+                            <div className="flex items-center space-x-2 mt-1">
+                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                user.role === 'admin' ? 'bg-red-100 text-red-800' :
+                                user.role === 'advertiser' ? 'bg-blue-100 text-blue-800' :
+                                'bg-green-100 text-green-800'
+                              }`}>
+                                {user.role === 'admin' ? 'ê´€ë¦¬ì' :
+                                 user.role === 'advertiser' ? 'ê´‘ê³ ì£? : '?¼ë°˜?Œì›'}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            {/* ??•  ?˜ì • */}
+                            <select
+                              value={user.role || 'user'}
+                              onChange={(e) => handleRoleUpdate(user.id, e.target.value as UserRole)}
+                              className="text-sm border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-red-500"
+                            >
+                              <option value="user">?¼ë°˜?Œì›</option>
+                              <option value="advertiser">ê´‘ê³ ì£?/option>
+                              <option value="admin">ê´€ë¦¬ì</option>
+                            </select>
+                            
+                            {/* ?? œ ë²„íŠ¼ */}
+                            <button
+                              onClick={() => handleUserDelete(user.id, user.displayName || '?¬ìš©??)}
+                              className="text-red-600 hover:text-red-800 p-1 transition-colors"
+                              title="?¬ìš©???? œ"
+                            >
+                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )
+
+      case 'experiences':
+        // ì²´í—˜??ê´€ë¦?ë©”ì¸ ?˜ì´ì§€ - ?œë¸Œ ë©”ë‰´ ?ˆë‚´
+        return (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">ì²´í—˜??ê´€ë¦?/h2>
+              <p className="text-gray-600">?¼ìª½ ë©”ë‰´?ì„œ ?¤ì˜¤?ìŠˆ ?ëŠ” ?¸ìŠ¤?€ê·¸ë¨ ì²´í—˜?¨ì„ ? íƒ?˜ì„¸??/p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* ?¤ì˜¤?ìŠˆ ì²´í—˜??ì¹´ë“œ */}
+              <div className="bg-white rounded-xl shadow-sm p-6 border border-red-200">
+                <div className="flex items-center space-x-3 mb-4">
+                  <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+                    <Activity className="h-6 w-6 text-red-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">?¤ì˜¤?ìŠˆ ì²´í—˜??/h3>
+                    <p className="text-sm text-gray-500">?¤ì˜¤?ìŠˆ ì²´í—˜??ê´€ë¦?/p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-4 mb-4">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-red-600">{experienceStats.total}</p>
+                    <p className="text-xs text-gray-500">?„ì²´</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-green-600">{experienceStats.recruiting}</p>
+                    <p className="text-xs text-gray-500">ëª¨ì§‘ì¤?/p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-yellow-600">{experienceStats.ongoing}</p>
+                    <p className="text-xs text-gray-500">ì§„í–‰ì¤?/p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setActiveSubTab('xiaohongshu-experiences')}
+                  className="w-full bg-red-50 text-red-700 px-4 py-2 rounded-lg hover:bg-red-100 transition-colors"
+                >
+                  ?¤ì˜¤?ìŠˆ ì²´í—˜??ê´€ë¦¬í•˜ê¸?                </button>
+              </div>
+
+              {/* ?¸ìŠ¤?€ê·¸ë¨ ì²´í—˜??ì¹´ë“œ */}
+              <div className="bg-white rounded-xl shadow-sm p-6 border border-pink-200">
+                <div className="flex items-center space-x-3 mb-4">
+                  <div className="w-12 h-12 bg-pink-100 rounded-lg flex items-center justify-center">
+                    <Activity className="h-6 w-6 text-pink-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">?¸ìŠ¤?€ê·¸ë¨ ì²´í—˜??/h3>
+                    <p className="text-sm text-gray-500">?¸ìŠ¤?€ê·¸ë¨ ì²´í—˜??ê´€ë¦?/p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-4 mb-4">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-pink-600">{instagramStats.total}</p>
+                    <p className="text-xs text-gray-500">?„ì²´</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-green-600">{instagramStats.recruiting}</p>
+                    <p className="text-xs text-gray-500">ëª¨ì§‘ì¤?/p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-yellow-600">{instagramStats.ongoing}</p>
+                    <p className="text-xs text-gray-500">ì§„í–‰ì¤?/p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setActiveSubTab('instagram-experiences')}
+                  className="w-full bg-pink-50 text-pink-700 px-4 py-2 rounded-lg hover:bg-pink-100 transition-colors"
+                >
+                  ?¸ìŠ¤?€ê·¸ë¨ ì²´í—˜??ê´€ë¦¬í•˜ê¸?                </button>
+              </div>
+            </div>
+          </div>
+        )
+
+
+      case 'applications':
+        // ? ì²­ ê´€ë¦?ë©”ì¸ ?˜ì´ì§€ - ?œë¸Œ ë©”ë‰´ ?ˆë‚´
+        return (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">? ì²­ ê´€ë¦?/h2>
+              <p className="text-gray-600">?¼ìª½ ë©”ë‰´?ì„œ ?¤ì˜¤?ìŠˆ ?ëŠ” ?¸ìŠ¤?€ê·¸ë¨ ? ì²­??? íƒ?˜ì„¸??/p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* ?¤ì˜¤?ìŠˆ ? ì²­ ì¹´ë“œ */}
+              <div className="bg-white rounded-xl shadow-sm p-6 border border-red-200">
+                <div className="flex items-center space-x-3 mb-4">
+                  <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+                    <FileText className="h-6 w-6 text-red-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">?¤ì˜¤?ìŠˆ ? ì²­</h3>
+                    <p className="text-sm text-gray-500">?¤ì˜¤?ìŠˆ ì²´í—˜??? ì²­ ê´€ë¦?/p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-4 mb-4">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-red-600">{applications.length}</p>
+                    <p className="text-xs text-gray-500">?„ì²´ ? ì²­</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-blue-600">{applicationStats.todayApplications}</p>
+                    <p className="text-xs text-gray-500">? ê·œ ? ì²­</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-green-600">{applicationStats.thisWeekApplications}</p>
+                    <p className="text-xs text-gray-500">?´ë²ˆ ì£?/p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setActiveSubTab('xiaohongshu-applications')}
+                  className="w-full bg-red-50 text-red-700 px-4 py-2 rounded-lg hover:bg-red-100 transition-colors"
+                >
+                  ?¤ì˜¤?ìŠˆ ? ì²­ ê´€ë¦¬í•˜ê¸?                </button>
+              </div>
+
+              {/* ?¸ìŠ¤?€ê·¸ë¨ ? ì²­ ì¹´ë“œ */}
+              <div className="bg-white rounded-xl shadow-sm p-6 border border-pink-200">
+                <div className="flex items-center space-x-3 mb-4">
+                  <div className="w-12 h-12 bg-pink-100 rounded-lg flex items-center justify-center">
+                    <FileText className="h-6 w-6 text-pink-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">?¸ìŠ¤?€ê·¸ë¨ ? ì²­</h3>
+                    <p className="text-sm text-gray-500">?¸ìŠ¤?€ê·¸ë¨ ì²´í—˜??? ì²­ ê´€ë¦?/p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-4 mb-4">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-pink-600">0</p>
+                    <p className="text-xs text-gray-500">?„ì²´ ? ì²­</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-blue-600">0</p>
+                    <p className="text-xs text-gray-500">? ê·œ ? ì²­</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-green-600">0</p>
+                    <p className="text-xs text-gray-500">?´ë²ˆ ì£?/p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setActiveSubTab('instagram-applications')}
+                  className="w-full bg-pink-50 text-pink-700 px-4 py-2 rounded-lg hover:bg-pink-100 transition-colors"
+                >
+                  ?¸ìŠ¤?€ê·¸ë¨ ? ì²­ ê´€ë¦¬í•˜ê¸?                </button>
+              </div>
+            </div>
+          </div>
+        )
+
+      case 'create-card':
+        // ? ì²­ ì¹´ë“œ ë§Œë“¤ê¸?ë©”ì¸ ?˜ì´ì§€ - ?œë¸Œ ë©”ë‰´ ?ˆë‚´
+        return (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">? ì²­ ì¹´ë“œ ë§Œë“¤ê¸?/h2>
+              <p className="text-gray-600">?¼ìª½ ë©”ë‰´?ì„œ ?¤ì˜¤?ìŠˆ ?ëŠ” ?¸ìŠ¤?€ê·¸ë¨ ì¹´ë“œë¥?? íƒ?˜ì„¸??/p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* ?¤ì˜¤?ìŠˆ ì¹´ë“œ ë§Œë“¤ê¸?ì¹´ë“œ */}
+              <div className="bg-white rounded-xl shadow-sm p-6 border border-red-200">
+                <div className="flex items-center space-x-3 mb-4">
+                  <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+                    <Plus className="h-6 w-6 text-red-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">?¤ì˜¤?ìŠˆ ì¹´ë“œ</h3>
+                    <p className="text-sm text-gray-500">?¤ì˜¤?ìŠˆ ì²´í—˜??ì¹´ë“œ ?ì„±</p>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-600 mb-4">
+                  ?¤ì˜¤?ìŠˆ ì²´í—˜?¨ì„ ?„í•œ ? ì²­ ì¹´ë“œë¥??ì„±?????ˆìŠµ?ˆë‹¤. 
+                  ?œë™ ? í˜•, ?œëª©, ?¤ëª…, ?„ì¹˜, ë°©ë¬¸ ? ì§œ ?±ì„ ?¤ì •?????ˆìŠµ?ˆë‹¤.
+                </p>
+                <button
+                  onClick={() => setActiveSubTab('xiaohongshu-create-card')}
+                  className="w-full bg-red-50 text-red-700 px-4 py-2 rounded-lg hover:bg-red-100 transition-colors"
+                >
+                  ?¤ì˜¤?ìŠˆ ì¹´ë“œ ë§Œë“¤ê¸?                </button>
+              </div>
+
+              {/* ?¸ìŠ¤?€ê·¸ë¨ ì¹´ë“œ ë§Œë“¤ê¸?ì¹´ë“œ */}
+              <div className="bg-white rounded-xl shadow-sm p-6 border border-pink-200">
+                <div className="flex items-center space-x-3 mb-4">
+                  <div className="w-12 h-12 bg-pink-100 rounded-lg flex items-center justify-center">
+                    <Plus className="h-6 w-6 text-pink-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">?¸ìŠ¤?€ê·¸ë¨ ì¹´ë“œ</h3>
+                    <p className="text-sm text-gray-500">?¸ìŠ¤?€ê·¸ë¨ ì²´í—˜??ì¹´ë“œ ?ì„±</p>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-600 mb-4">
+                  ?¸ìŠ¤?€ê·¸ë¨ ì²´í—˜?¨ì„ ?„í•œ ? ì²­ ì¹´ë“œë¥??ì„±?????ˆìŠµ?ˆë‹¤. 
+                  ?„ì¬ ì¤€ë¹?ì¤‘ì¸ ê¸°ëŠ¥?…ë‹ˆ??
+                </p>
+                <button
+                  onClick={() => setActiveSubTab('instagram-create-card')}
+                  className="w-full bg-pink-50 text-pink-700 px-4 py-2 rounded-lg hover:bg-pink-100 transition-colors"
+                >
+                  ?¸ìŠ¤?€ê·¸ë¨ ì¹´ë“œ ë§Œë“¤ê¸?                </button>
+              </div>
+            </div>
+          </div>
+        )
+                          <button
+                            type="button"
+                            onClick={() => removeRequirementZh(index)}
+                            className="px-3 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
+                          >
+                            ? é™¤
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={addRequirementZh}
+                      className="w-full px-4 py-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition-colors border-2 border-dashed border-green-300"
+                    >
+                      + æ·»åŠ ?¡ä»¶
+                    </button>
+                  </div>
+                </div>
+                
+                {cardMessage && (
+                  <div className={`p-3 rounded-lg ${
+                    cardMessage.includes('?±ê³µ') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                  }`}>
+                    {cardMessage}
+                  </div>
+                )}
+                
+                <div className="flex items-center space-x-4">
+                  <button
+                    type="submit"
+                    disabled={cardSubmitting}
+                    className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                  >
+                            <span>?“… {experience.date}</span>
+                            <span>?‘¥ {experience.maxParticipants}ëª?/span>
+                            <span>?“ {experience.location}</span>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 ml-4">
+                          <button
+                            onClick={() => handleEditCard(experience)}
+                            className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600 transition-colors"
+                          >
+                            ?˜ì •
+                          </button>
+                          <button
+                            onClick={() => handleDeleteCard(experience.id)}
+                            className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 transition-colors"
+                          >
+                            ?? œ
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )
+
+      case 'excel-export':
+        return (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">?…ì²´ë³?ì²´í—˜??? ì²­ë¦¬ìŠ¤??/h2>
+              <p className="text-gray-600">ì²´í—˜??? ì²­ ?°ì´?°ë? ?‘ì? ?Œì¼ë¡??¤ìš´ë¡œë“œ?????ˆìŠµ?ˆë‹¤</p>
+            </div>
+            
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold text-gray-900">? ì²­ ?°ì´??ê´€ë¦?/h3>
+                <div className="flex gap-3">
+                  <button
+                    onClick={loadExcelData}
+                    disabled={excelLoading}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                  >
+                    <RefreshCw className={`h-4 w-4 ${excelLoading ? 'animate-spin' : ''}`} />
+                    {excelLoading ? 'ë¡œë”© ì¤?..' : '?°ì´???ˆë¡œê³ ì¹¨'}
+                  </button>
+                  <button
+                    onClick={handleExcelDownload}
+                    disabled={excelData.length === 0}
+                    className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                  >
+                    <Download className="h-4 w-4" />
+                    ?‘ì? ?¤ìš´ë¡œë“œ
+                  </button>
+                </div>
+              </div>
+
+              {excelMessage && (
+                <div className={`mb-4 p-3 rounded-lg ${
+                  excelMessage.includes('?±ê³µ') ? 'bg-green-50 text-green-700' : 
+                  excelMessage.includes('?¤íŒ¨') ? 'bg-red-50 text-red-700' : 
+                  'bg-blue-50 text-blue-700'
+                }`}>
+                  {excelMessage}
+                </div>
+              )}
+
+              {excelData.length > 0 ? (
+                <div className="space-y-4">
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h4 className="font-semibold text-gray-900 mb-2">?°ì´??ë¯¸ë¦¬ë³´ê¸°</h4>
+                    <p className="text-sm text-gray-600 mb-3">ì´?{excelData.length}ê°œì˜ ? ì²­ ?°ì´?°ê? ?ˆìŠµ?ˆë‹¤.</p>
+                    
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-gray-200">
+                            <th className="text-left py-2 px-3 font-semibold text-gray-700">? ì²­??/th>
+                            <th className="text-left py-2 px-3 font-semibold text-gray-700">ì²´í—˜??/th>
+                            <th className="text-left py-2 px-3 font-semibold text-gray-700">?íƒœ</th>
+                            <th className="text-left py-2 px-3 font-semibold text-gray-700">? ì²­??/th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {excelData.slice(0, 5).map((row, index) => (
+                            <tr key={index} className="border-b border-gray-100">
+                              <td className="py-2 px-3">
+                                <div>
+                                  <div className="font-medium text-gray-900">{row['? ì²­???´ë¦„']}</div>
+                                  <div className="text-gray-500 text-xs">{row['? ì²­???´ë©”??]}</div>
+                                </div>
+                              </td>
+                              <td className="py-2 px-3">
+                                <div className="font-medium text-gray-900">{row['ì²´í—˜???œëª©']}</div>
+                                <div className="text-gray-500 text-xs">{row['ì²´í—˜??ì¹´í…Œê³ ë¦¬']}</div>
+                              </td>
+                              <td className="py-2 px-3">
+                                <span className={`px-2 py-1 text-xs rounded-full ${
+                                  row['? ì²­ ?íƒœ'] === '?¹ì¸' ? 'bg-green-100 text-green-800' :
+                                  row['? ì²­ ?íƒœ'] === 'ê±°ì ˆ' ? 'bg-red-100 text-red-800' :
+                                  'bg-yellow-100 text-yellow-800'
+                                }`}>
+                                  {row['? ì²­ ?íƒœ']}
+                                </span>
+                              </td>
+                              <td className="py-2 px-3 text-gray-600">{row['? ì²­ ?¼ì‹œ']}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    
+                    {excelData.length > 5 && (
+                      <p className="text-xs text-gray-500 mt-2">
+                        ... ??{excelData.length - 5}ê°???(?‘ì? ?Œì¼?ì„œ ?„ì²´ ?°ì´???•ì¸ ê°€??
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <List className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500 mb-4">?„ì§ ?°ì´?°ê? ë¡œë“œ?˜ì? ?Šì•˜?µë‹ˆ??</p>
+                  <p className="text-sm text-gray-400">?„ì˜ &quot;?°ì´???ˆë¡œê³ ì¹¨&quot; ë²„íŠ¼???´ë¦­?˜ì—¬ ? ì²­ ?°ì´?°ë? ë¶ˆëŸ¬?¤ì„¸??</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )
+
+      default:
+        return null
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* ?¬ì´?œë°” */}
+      <div className="w-64 bg-white shadow-lg flex flex-col h-screen sticky top-0 min-h-full">
+        {/* ?ë‹¨ ë¡œê³  ?ì—­ */}
+        <div className="p-6">
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-gradient-to-r from-red-500 to-pink-500 rounded-lg flex items-center justify-center">
+              <Shield className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">ê´€ë¦¬ì</h1>
+              <p className="text-sm text-gray-500">{t('site.title')}</p>
+            </div>
+          </div>
+        </div>
+        
+        {/* ?¤ë¹„ê²Œì´??ë©”ë‰´ */}
+        <nav className="flex-1 px-0 overflow-y-auto">
+          {sidebarItems.map((item) => {
+            const Icon = item.icon
+            const hasSubItems = item.subItems && item.subItems.length > 0
+            const isExpanded = activeTab === item.id && hasSubItems
+            
+            return (
+              <div key={item.id}>
+                <button
+                  onClick={() => {
+                    if (hasSubItems) {
+                      setActiveTab(item.id)
+                      if (activeSubTab === '') {
+                        setActiveSubTab(item.subItems[0].id)
+                      }
+                    } else {
+                      setActiveTab(item.id)
+                      setActiveSubTab('')
+                    }
+                  }}
+                  className={`w-full flex items-center space-x-3 px-6 py-3 text-left transition-colors ${
+                    activeTab === item.id
+                      ? 'bg-red-50 text-red-700 border-r-2 border-red-600'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                >
+                  <Icon className="h-5 w-5" />
+                  <span className="font-medium">{item.label}</span>
+                  {hasSubItems && (
+                    <svg 
+                      className={`h-4 w-4 ml-auto transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  )}
+                </button>
+                
+                {/* ?œë¸Œ ë©”ë‰´ */}
+                {hasSubItems && isExpanded && (
+                  <div className="bg-gray-50">
+                    {item.subItems.map((subItem) => {
+                      const SubIcon = subItem.icon
+                      return (
+                        <button
+                          key={subItem.id}
+                          onClick={() => setActiveSubTab(subItem.id)}
+                          className={`w-full flex items-center space-x-3 px-12 py-2 text-left transition-colors ${
+                            activeSubTab === subItem.id
+                              ? 'bg-red-100 text-red-700'
+                              : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                          }`}
+                        >
+                          <SubIcon className="h-4 w-4" />
+                          <span className="text-sm">{subItem.label}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </nav>
+        
+        {/* ?˜ë‹¨ ì²´í—˜???Œì•„ê°€ê¸?ë²„íŠ¼ */}
+        <div className="p-6 border-t border-gray-200">
+          <button
+            onClick={() => router.push('/')}
+            className="w-full flex items-center justify-center space-x-2 bg-gradient-to-r from-red-500 to-pink-500 text-white px-4 py-3 rounded-lg hover:from-red-600 hover:to-pink-600 transition-all duration-200 shadow-md hover:shadow-lg"
+          >
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            </svg>
+            <span className="font-medium">ì²´í—˜???Œì•„ê°€ê¸?/span>
+          </button>
+        </div>
+      </div>
+
+      {/* ë©”ì¸ ì½˜í…ì¸?*/}
+      <div className="flex-1 p-8">
+        {renderContent()}
+      </div>
+    </div>
+  )
+}

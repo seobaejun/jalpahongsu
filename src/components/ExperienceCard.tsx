@@ -1,0 +1,477 @@
+import { useLanguage } from '@/contexts/LanguageContext'
+import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { getApplicationsByExperience, getInstagramApplicationsByExperience } from '@/lib/applicationService'
+import { Experience } from '@/types/database'
+import { useAuth } from '@/hooks/useAuth'
+import Image from 'next/image'
+import ImageSkeleton from './ImageSkeleton'
+
+
+interface ExperienceCardProps {
+  experience: Experience
+  isInstagram?: boolean
+}
+
+export default function ExperienceCard({ experience, isInstagram = false }: ExperienceCardProps) {
+  const { t, currentLanguage } = useLanguage()
+  const router = useRouter()
+  const { isAuthenticated, loading } = useAuth()
+  const [applicationCount, setApplicationCount] = useState(0)
+  const [loadingApplications, setLoadingApplications] = useState(false)
+  const [imageLoaded, setImageLoaded] = useState(false)
+  
+  // 이미지 URL 디버깅
+  useEffect(() => {
+    if (experience.image) {
+      console.log('ExperienceCard 이미지 URL:', experience.image)
+      console.log('이미지 로딩 상태:', imageLoaded)
+    }
+  }, [experience.image, imageLoaded])
+
+  // 데이터 번역 함수
+  const translateData = (koreanText: string) => {
+    if (currentLanguage === 'ko') return koreanText
+    
+    const translations: { [key: string]: string } = {
+      // 제목 번역
+      '【REVU 포인트_5만】TERRA LIGHT 무설탕 맥주': '【REVU积分_5万】TERRA LIGHT无糖啤酒',
+      '【주말 방문 가능】보승회관 신사역점': '【周末可访问】保胜会馆新沙站店',
+      '【주말 방문 가능】서울88맥주': '【周末可访问】首尔88烧酒',
+      '【방문형 체험】더블유컨셉 강남점': '【访问型体验】W概念江南店',
+      '【배송형 체험】아모레퍼시픽 설화수': '【配送型体验】爱茉莉太平洋雪花秀',
+      '【방문형 체험】롯데월드타워 전망대': '【访问型体验】乐天世界塔展望台',
+      '【배송형 체험】삼성 갤럭시 S24': '【配送型体验】三星Galaxy S24',
+      'MARITHE 광장시장점': 'MARITHE广藏市场店',
+      '천안맛집': '天安美食店',
+      '뷰티': '美容',
+      '하리 원장님_헤어(고바이씬 헤어살롱)': '哈里院长_发型(高拜新发型沙龙)',
+      '서울랜드 방문': '首尔乐园访问',
+      '성형외과': '整形外科',
+      '강남 맛집': '江南美食店',
+      '【周末可访问】보승회관 신사역점': '【周末可访问】保胜会馆新沙站店',
+      '【周末可访问】首尔88烧酒': '【周末可访问】首尔88烧酒',
+      '【REVU积分_5万】 TERRA LIGH...': '【REVU积分_5万】TERRA LIGHT无糖啤酒',
+      
+      // 설명 번역
+      '한국 국민 맥주! 칼로리 33% 감소!': '韩国国民啤酒！卡路里减少33%！',
+      '순대국밥|백숙|돼지갈비탕 등 한식 체인점': '血肠汤饭|白切鸡|猪肉排骨汤等韩式连锁店',
+      '고급 화장품 브랜드 체험': '高级化妆品品牌体验',
+      '한국 대표 화장품 브랜드': '韩国代表化妆品品牌',
+      '서울 최고 전망대 체험': '首尔最高展望台体验',
+      '최신 스마트폰 체험': '最新智能手机体验',
+      '한국 전통 시장 체험': '韩国传统市场体验',
+      '전통 한국 음식 체험': '传统韩国美食体验',
+      '고급 헤어 스타일링 체험': '高级发型设计体验',
+      '테마파크 체험': '主题公园体验',
+      
+      // 추가 설명 번역 (실제 데이터에서 확인된 것들)
+      '한국 전통 시장에서의 쇼핑 체험': '韩国传统市场购物体验',
+      '전통 한국 음식 맛보기': '传统韩国美食品尝',
+      '고급 헤어 스타일링 서비스': '高级发型设计服务',
+      '테마파크에서의 즐거운 시간': '主题公园的快乐时光',
+      '최신 스마트폰 기능 체험': '最新智能手机功能体验',
+      '한국 대표 화장품 브랜드 체험': '韩国代表化妆品品牌体验',
+      '서울 최고 전망대에서의 경치 감상': '首尔最高展望台风景欣赏',
+      '고급 화장품 브랜드 제품 체험': '高级化妆品品牌产品体验',
+      '한국 국민 맥주 맛보기': '韩国国民啤酒品尝',
+      '순대국밥 등 전통 한식 체험': '血肠汤饭等传统韩食体验',
+      
+      // 이미지에서 확인된 실제 description들
+      '테스트': '测试',
+      '이뻐지기': '变漂亮',
+      '천안 맛집 테스트입니다.': '这是天安美食店测试。',
+      '테스트입니다.': '这是测试。',
+      '선미/배두나/한예슬/권상우/정혜성 동일 미용실': '宣美/裴斗娜/韩艺瑟/权相佑/郑惠成同一美容院',
+      '한국 최대 종합 테마파크': '韩国最大综合主题公园',
+      '종로 인기 소주방': '钟路人气烧酒屋',
+      
+      // 이미지에서 확인된 추가 description들
+      '한국 인기 디자이너 브랜드 팝업': '韩国人气设计师品牌快闪店',
+      '혈장탕밥|백숙|돼지갈비탕 등 한식 체인점': '血肠汤饭|白切鸡|猪肉排骨汤等韩式连锁店',
+      
+      // 카테고리 번역
+      '배송형 체험': '配送型体验',
+      '방문형 체험': '访问型体验',
+      
+      // 태그 번역
+      '식품': '食品',
+      'Revu 포인트': 'Revu积分',
+      '맛집 체험': '美食体验',
+      '화장품': '化妆品',
+      '관광': '观光',
+      '전자제품': '电子产品',
+      '스마트폰': '智能手机',
+      '패션': '时尚',
+      '헤어': '发型',
+      '테마파크': '主题公园'
+    }
+    
+    // 번역 사전에 있는 경우 번역된 텍스트 반환
+    if (translations[koreanText]) {
+      return translations[koreanText]
+    }
+    
+    // 번역 사전에 없는 경우 기본 번역 시도
+    let translatedText = koreanText
+    
+    // 일반적인 한국어 패턴을 중국어로 번역
+    translatedText = translatedText
+      .replace(/체험/g, '体验')
+      .replace(/방문/g, '访问')
+      .replace(/맛집/g, '美食店')
+      .replace(/한국/g, '韩国')
+      .replace(/서울/g, '首尔')
+      .replace(/강남/g, '江南')
+      .replace(/테스트/g, '测试')
+      .replace(/브랜드/g, '品牌')
+      .replace(/팝업/g, '快闪店')
+      .replace(/디자이너/g, '设计师')
+      .replace(/인기/g, '人气')
+      .replace(/최대/g, '最大')
+      .replace(/종합/g, '综合')
+      .replace(/테마파크/g, '主题公园')
+      .replace(/소주방/g, '烧酒屋')
+      .replace(/종로/g, '钟路')
+      .replace(/미용실/g, '美容院')
+      .replace(/헤어/g, '发型')
+      .replace(/살롱/g, '沙龙')
+      .replace(/원장님/g, '院长')
+      .replace(/동일/g, '同一')
+      .replace(/포인트/g, '积分')
+      .replace(/무설탕/g, '无糖')
+      .replace(/맥주/g, '啤酒')
+      .replace(/칼로리/g, '卡路里')
+      .replace(/감소/g, '减少')
+      .replace(/순대국밥/g, '血肠汤饭')
+      .replace(/백숙/g, '白切鸡')
+      .replace(/돼지갈비탕/g, '猪肉排骨汤')
+      .replace(/한식/g, '韩式')
+      .replace(/체인점/g, '连锁店')
+      .replace(/화장품/g, '化妆品')
+      .replace(/고급/g, '高级')
+      .replace(/대표/g, '代表')
+      .replace(/전망대/g, '展望台')
+      .replace(/스마트폰/g, '智能手机')
+      .replace(/전통/g, '传统')
+      .replace(/시장/g, '市场')
+      .replace(/음식/g, '美食')
+      .replace(/스타일링/g, '设计')
+      .replace(/서비스/g, '服务')
+      .replace(/기능/g, '功能')
+      .replace(/경치/g, '风景')
+      .replace(/감상/g, '欣赏')
+      .replace(/제품/g, '产品')
+      .replace(/맛보기/g, '品尝')
+      .replace(/쇼핑/g, '购物')
+      .replace(/시간/g, '时间')
+      .replace(/즐거운/g, '快乐')
+      .replace(/주말/g, '周末')
+      .replace(/방문 가능/g, '可访问')
+      .replace(/배송형/g, '配送型')
+      .replace(/방문형/g, '访问型')
+      .replace(/모집/g, '招募')
+      .replace(/진행/g, '进行')
+      .replace(/완료/g, '完成')
+      .replace(/신청/g, '申请')
+      .replace(/지금/g, '立即')
+      .replace(/마감/g, '结束')
+      .replace(/로딩중/g, '加载中')
+      .replace(/명/g, '名')
+      .replace(/일/g, '天')
+      .replace(/남은/g, '剩余')
+      .replace(/기간/g, '期间')
+      .replace(/참여/g, '参与')
+      .replace(/정보/g, '信息')
+      .replace(/혜택/g, '福利')
+      .replace(/조건/g, '条件')
+      .replace(/요구사항/g, '要求')
+      .replace(/필요/g, '需要')
+      .replace(/가능/g, '可能')
+      .replace(/이상/g, '以上')
+      .replace(/성인/g, '成人')
+      .replace(/관심/g, '兴趣')
+      .replace(/경험/g, '经验')
+      .replace(/후기/g, '后记')
+      .replace(/작성/g, '撰写')
+      .replace(/SNS/g, 'SNS')
+      .replace(/계정/g, '账户')
+      .replace(/보유/g, '拥有')
+      .replace(/지급/g, '支付')
+      .replace(/무료/g, '免费')
+      .replace(/브랜드/g, '品牌')
+      .replace(/굿즈/g, '周边')
+      .replace(/증정/g, '赠送')
+      .replace(/특별/g, '特别')
+      .replace(/할인/g, '折扣')
+      .replace(/혜택/g, '优惠')
+    
+    return translatedText
+  }
+
+  // 모집 마감일까지 남은 일수 계산
+  const getDaysUntilRecruitmentEnd = () => {
+    if (!experience.recruitmentEndDate) {
+      return experience.daysLeft // 기존 daysLeft 사용
+    }
+    
+    const today = new Date()
+    const endDate = new Date(experience.recruitmentEndDate)
+    const diffTime = endDate.getTime() - today.getTime()
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    
+    return Math.max(0, diffDays) // 음수 방지
+  }
+
+  // 날짜에 따른 상태 자동 계산
+  const getStatusByDate = () => {
+    if (!experience.recruitmentStartDate || !experience.recruitmentEndDate) {
+      return experience.status // 기존 상태 사용
+    }
+    
+    const today = new Date()
+    const startDate = new Date(experience.recruitmentStartDate)
+    const endDate = new Date(experience.recruitmentEndDate)
+    
+    // 모집 시작 전
+    if (today < startDate) {
+      return 'recruiting'
+    }
+    // 모집 기간 중
+    else if (today >= startDate && today <= endDate) {
+      return 'recruiting'
+    }
+    // 모집 마감 후 (체험 일정 전)
+    else if (today > endDate) {
+      // 체험 일정이 있다면 체험 일정 기준으로 판단
+      if (experience.date) {
+        const experienceDate = new Date(experience.date)
+        if (today < experienceDate) {
+          return 'ongoing' // 모집 마감, 체험 전
+        } else {
+          return 'completed' // 체험 완료
+        }
+      }
+      return 'ongoing' // 체험 일정이 없으면 진행중
+    }
+    
+    return experience.status // 기본값
+  }
+
+  const daysUntilEnd = getDaysUntilRecruitmentEnd()
+  const currentStatus = getStatusByDate()
+
+  // 이미지 로딩 상태 관리
+  useEffect(() => {
+    setImageLoaded(false)
+  }, [experience.image])
+
+  useEffect(() => {
+    const loadApplicationCount = async () => {
+      setLoadingApplications(true)
+      try {
+        console.log('체험단 ID로 신청자 수 조회:', experience.id, '인스타그램:', isInstagram)
+        
+        // 인스타그램 체험단인지에 따라 다른 함수 사용
+        const result = isInstagram 
+          ? await getInstagramApplicationsByExperience(experience.id)
+          : await getApplicationsByExperience(experience.id)
+          
+        console.log('신청자 수 조회 결과:', result)
+        if (result.success) {
+          console.log('신청자 수:', result.applications.length)
+          setApplicationCount(result.applications.length)
+        } else {
+          console.error('신청자 수 조회 실패:', result.error)
+          setApplicationCount(0)
+        }
+      } catch (error) {
+        console.error('신청자 수 로딩 오류:', error)
+        setApplicationCount(0)
+      } finally {
+        setLoadingApplications(false)
+      }
+    }
+
+    loadApplicationCount()
+    
+    // 페이지 포커스 시 신청자 수 새로고침
+    const handleFocus = () => {
+      loadApplicationCount()
+    }
+    
+    // 주기적 새로고침 (30초마다로 변경)
+    const interval = setInterval(loadApplicationCount, 30000)
+    
+    window.addEventListener('focus', handleFocus)
+    
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [experience.id])
+  // const isFull = experience.participants >= experience.maxParticipants // 사용하지 않음
+  const isUrgent = daysUntilEnd <= 3
+
+  const handleApply = () => {
+    // 마감된 경우 아무것도 하지 않음
+    if (daysUntilEnd <= 0) {
+      return
+    }
+    
+    if (!loading && !isAuthenticated) {
+      // 로그인하지 않은 경우 로그인 페이지로 리다이렉트
+      router.push('/login')
+      return
+    }
+    
+    if (loading) {
+      // 로딩 중인 경우 아무것도 하지 않음
+      return
+    }
+    
+    // 로그인된 경우 체험단 상세 페이지로 이동
+    if (isInstagram) {
+      router.push(`/instagram/experiences/${experience.id}`)
+    } else {
+      router.push(`/experiences/${experience.id}`)
+    }
+  }
+
+  return (
+    <div className={`bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 transform hover:scale-105 ${
+      isInstagram 
+        ? 'hover:shadow-pink-500/25 hover:shadow-2xl hover:ring-2 hover:ring-pink-500/20' 
+        : 'hover:shadow-red-500/25 hover:shadow-2xl hover:ring-2 hover:ring-red-500/20'
+    }`}>
+      {/* 이미지 */}
+        <div className="relative">
+          {experience.image && experience.image !== '/api/placeholder/300/200' ? (
+            <div className="relative w-full aspect-square">
+              {!imageLoaded && <ImageSkeleton />}
+              <Image
+                src={experience.image}
+                alt={experience.title}
+                fill
+                className={`object-cover ${imageLoaded ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}
+                onLoad={() => {
+                  console.log('이미지 로드 성공:', experience.image)
+                  setImageLoaded(true)
+                }}
+                onError={(e) => {
+                  console.error('이미지 로드 실패:', experience.image, e)
+                  setImageLoaded(false)
+                }}
+                priority={false}
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                placeholder="blur"
+                blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="
+                unoptimized={false}
+              />
+              {/* 이미지 로드 실패 시 fallback */}
+              {!imageLoaded && (
+                <div className="absolute inset-0 w-full aspect-square bg-gray-200 flex items-center justify-center">
+                  <span className="text-gray-400">{t('card.imagePlaceholder')}</span>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="w-full aspect-square bg-gray-200 flex items-center justify-center">
+              <span className="text-gray-400">{t('card.imagePlaceholder')}</span>
+            </div>
+          )}
+        
+        {/* 뱃지 */}
+        <div className="absolute top-3 left-3 flex flex-col gap-2">
+          {/* 체험단/기자단 타입 */}
+          <span className="bg-purple-500 text-white px-2 py-1 rounded text-xs font-medium">
+            {experience.activityType === 'reporter' ? t('card.reporter') : t('card.experience')}
+          </span>
+          
+          <div className="flex gap-2">
+            {experience.isNew && (
+              <span className="bg-green-500 text-white px-2 py-1 rounded text-xs font-medium">
+                {t('card.new')}
+              </span>
+            )}
+            {isUrgent && (
+              <span className="bg-red-500 text-white px-2 py-1 rounded text-xs font-medium">
+                {t('card.urgent')}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* 상태 배지 */}
+        <div className="absolute top-3 right-3">
+          <span className={`text-white px-2 py-1 rounded text-xs font-medium ${
+            currentStatus === 'recruiting'
+              ? 'bg-green-500' // 모집중
+              : currentStatus === 'ongoing'
+              ? 'bg-yellow-500' // 진행중
+              : 'bg-gray-500' // 완료
+          }`}>
+            {currentStatus === 'recruiting'
+              ? t('card.recruiting')
+              : currentStatus === 'ongoing'
+              ? t('card.ongoing')
+              : t('card.completed')
+            }
+          </span>
+        </div>
+      </div>
+
+      {/* 콘텐츠 */}
+      <div className="p-4">
+        <h3 className="text-base font-semibold text-gray-900 mb-2 line-clamp-1">
+          {(() => {
+            if (currentLanguage === 'zh') {
+              return experience.titleZh || translateData(experience.title)
+            } else if (currentLanguage === 'en') {
+              console.log('영어 제목 표시:', { titleEn: experience.titleEn, title: experience.title })
+              return experience.titleEn || experience.title
+            }
+            return experience.title
+          })()}
+        </h3>
+        
+        <p className="text-gray-600 text-sm mb-4 line-clamp-2 min-h-[2.5rem]">
+          {(() => {
+            if (currentLanguage === 'zh') {
+              return experience.descriptionZh || translateData(experience.description)
+            } else if (currentLanguage === 'en') {
+              console.log('영어 설명 표시:', { descriptionEn: experience.descriptionEn, description: experience.description })
+              return experience.descriptionEn || experience.description
+            }
+            return experience.description
+          })()}
+        </p>
+
+        {/* 참여 정보 */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center text-sm text-gray-600">
+            <span className="font-medium text-red-600">
+              {loadingApplications ? t('card.loading') : `${applicationCount} / ${experience.maxParticipants}${t('card.recruiting')}`}
+            </span>
+          </div>
+          <div className="text-sm text-gray-600">
+            {t('card.daysLeft')} <span className="font-medium text-orange-600">{daysUntilEnd}</span> {t('card.days')}
+          </div>
+        </div>
+
+        {/* 버튼 */}
+        <button 
+          onClick={handleApply}
+          disabled={daysUntilEnd <= 0}
+          className={`w-full py-3 px-4 rounded-lg text-sm font-medium transition-colors ${
+            daysUntilEnd <= 0 
+              ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
+              : 'bg-red-600 text-white hover:bg-red-700'
+          }`}
+        >
+          {daysUntilEnd <= 0 ? t('card.closed') : t('card.apply')}
+        </button>
+      </div>
+    </div>
+  )
+}

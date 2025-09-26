@@ -1,0 +1,211 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - main [ref=e3]:
+    - generic [ref=e6]:
+      - link "中国体验团" [ref=e8] [cursor=pointer]:
+        - /url: /
+      - navigation [ref=e9]:
+        - link "首页" [ref=e10] [cursor=pointer]:
+          - /url: /
+        - link "体验活动" [ref=e11] [cursor=pointer]:
+          - /url: /experiences
+        - link "体验后记" [ref=e12] [cursor=pointer]:
+          - /url: /reviews
+        - link "关于我们" [ref=e13] [cursor=pointer]:
+          - /url: /about
+      - generic [ref=e14]:
+        - link "登录" [ref=e15] [cursor=pointer]:
+          - /url: /login
+        - link "注册" [ref=e16] [cursor=pointer]:
+          - /url: /register
+    - generic [ref=e19]:
+      - heading "中国体验团" [level=1] [ref=e20]
+      - paragraph [ref=e21]: 在韩中国留学生的专属产品体验平台
+      - paragraph [ref=e22]: 体验最新韩国产品，分享真实感受，获得丰厚奖励。加入我们，开启你的韩国产品体验之旅！
+      - generic [ref=e23]:
+        - button "立即体验" [ref=e24]
+        - button "了解更多" [ref=e25]
+    - generic [ref=e27]:
+      - generic [ref=e28]:
+        - heading "热门体验活动" [level=2] [ref=e29]
+        - paragraph [ref=e30]: 精选韩国优质品牌体验机会，等你来参与
+      - generic [ref=e31]:
+        - button "全部" [ref=e32]
+        - button "配送型体验" [ref=e33]
+        - button "访问型体验" [ref=e34]
+      - generic [ref=e35]:
+        - generic [ref=e36]:
+          - generic [ref=e37]:
+            - generic [ref=e39]: 产品图片
+            - generic [ref=e40]:
+              - generic [ref=e41]: 新活动
+              - generic [ref=e42]: 紧急
+            - generic [ref=e44]: 配送型体验
+          - generic [ref=e45]:
+            - heading "【REVU积分_5万】TERRA LIGHT无糖啤酒" [level=3] [ref=e46]
+            - paragraph [ref=e47]: 韩国国民啤酒!热量减少33%！
+            - generic [ref=e48]:
+              - generic [ref=e49]: "#食品"
+              - generic [ref=e50]: "#Revu积分"
+            - generic [ref=e51]:
+              - generic [ref=e52]:
+                - generic [ref=e53]: "40"
+                - generic [ref=e54]: /
+                - generic [ref=e55]: "20"
+                - generic [ref=e56]: 人
+              - generic [ref=e57]:
+                - text: 还剩
+                - generic [ref=e58]: "3"
+                - text: 天
+            - button "已满员" [disabled] [ref=e61]
+        - generic [ref=e62]:
+          - generic [ref=e63]:
+            - generic [ref=e65]: 产品图片
+            - generic [ref=e67]: 新活动
+            - generic [ref=e69]: 访问型体验
+          - generic [ref=e70]:
+            - heading "【可周末探店】BOSEUNG会馆 新沙站店" [level=3] [ref=e71]
+            - paragraph [ref=e72]: 血肠汤饭|白切肉|猪脊骨汤等 韩式连锁品牌老店
+            - generic [ref=e74]: "#美食体验"
+            - generic [ref=e75]:
+              - generic [ref=e76]:
+                - generic [ref=e77]: "2"
+                - generic [ref=e78]: /
+                - generic [ref=e79]: "6"
+                - generic [ref=e80]: 人
+              - generic [ref=e81]:
+                - text: 还剩
+                - generic [ref=e82]: "8"
+                - text: 天
+            - button "立即报名" [ref=e85]
+        - generic [ref=e86]:
+          - generic [ref=e87]:
+            - generic [ref=e89]: 产品图片
+            - generic [ref=e91]: 新活动
+            - generic [ref=e93]: 访问型体验
+          - generic [ref=e94]:
+            - heading "哈莉院长_美发(Gobycin美发沙龙)" [level=3] [ref=e95]
+            - paragraph [ref=e96]: 宣美/裴斗娜/韩艺瑟/权相佑/郑惠成同款美容室
+            - generic [ref=e98]: "#美容美发"
+            - generic [ref=e99]:
+              - generic [ref=e100]:
+                - generic [ref=e101]: "2"
+                - generic [ref=e102]: /
+                - generic [ref=e103]: "3"
+                - generic [ref=e104]: 人
+              - generic [ref=e105]:
+                - text: 还剩
+                - generic [ref=e106]: "8"
+                - text: 天
+            - button "立即报名" [ref=e109]
+        - generic [ref=e110]:
+          - generic [ref=e111]:
+            - generic [ref=e113]: 产品图片
+            - generic [ref=e115]: 访问型体验
+          - generic [ref=e116]:
+            - heading "MARITHE 广藏市场店" [level=3] [ref=e117]
+            - paragraph [ref=e118]: 韩国超火设计师品牌快闪
+            - generic [ref=e120]: "#时尚单品"
+            - generic [ref=e121]:
+              - generic [ref=e122]:
+                - generic [ref=e123]: "41"
+                - generic [ref=e124]: /
+                - generic [ref=e125]: "15"
+                - generic [ref=e126]: 人
+              - generic [ref=e127]:
+                - text: 还剩
+                - generic [ref=e128]: "6"
+                - text: 天
+            - button "已满员" [disabled] [ref=e131]
+        - generic [ref=e132]:
+          - generic [ref=e133]:
+            - generic [ref=e135]: 产品图片
+            - generic [ref=e137]: 访问型体验
+          - generic [ref=e138]:
+            - heading "【可周末探店】首尔88啤酒" [level=3] [ref=e139]
+            - paragraph [ref=e140]: 钟路人气小酒馆
+            - generic [ref=e142]: "#美食体验"
+            - generic [ref=e143]:
+              - generic [ref=e144]:
+                - generic [ref=e145]: "5"
+                - generic [ref=e146]: /
+                - generic [ref=e147]: "5"
+                - generic [ref=e148]: 人
+              - generic [ref=e149]:
+                - text: 还剩
+                - generic [ref=e150]: "7"
+                - text: 天
+            - button "已满员" [disabled] [ref=e153]
+        - generic [ref=e154]:
+          - generic [ref=e155]:
+            - generic [ref=e157]: 产品图片
+            - generic [ref=e159]: 访问型体验
+          - generic [ref=e160]:
+            - heading "首尔乐园访问" [level=3] [ref=e161]
+            - paragraph [ref=e162]: 韩国最大多元一体游乐场
+            - generic [ref=e164]: "#文化体验"
+            - generic [ref=e165]:
+              - generic [ref=e166]:
+                - generic [ref=e167]: "15"
+                - generic [ref=e168]: /
+                - generic [ref=e169]: "10"
+                - generic [ref=e170]: 人
+              - generic [ref=e171]:
+                - text: 还剩
+                - generic [ref=e172]: "6"
+                - text: 天
+            - button "已满员" [disabled] [ref=e175]
+      - button "查看更多体验活动" [ref=e177]
+    - generic [ref=e179]:
+      - generic [ref=e180]:
+        - generic [ref=e181]:
+          - heading "中国体验团" [level=3] [ref=e182]
+          - paragraph [ref=e183]: 专为在韩中国留学生打造的产品体验平台，提供最新韩国品牌体验机会，分享真实感受，获得丰厚奖励。
+          - generic [ref=e184]:
+            - link "微信" [ref=e185] [cursor=pointer]:
+              - /url: "#"
+              - generic [ref=e186] [cursor=pointer]: 微信
+              - img [ref=e187] [cursor=pointer]
+            - link "微博" [ref=e189] [cursor=pointer]:
+              - /url: "#"
+              - generic [ref=e190] [cursor=pointer]: 微博
+              - img [ref=e191] [cursor=pointer]
+        - generic [ref=e193]:
+          - heading "快速导航" [level=4] [ref=e194]
+          - list [ref=e195]:
+            - listitem [ref=e196]:
+              - link "首页" [ref=e197] [cursor=pointer]:
+                - /url: /
+            - listitem [ref=e198]:
+              - link "体验活动" [ref=e199] [cursor=pointer]:
+                - /url: /experiences
+            - listitem [ref=e200]:
+              - link "体验后记" [ref=e201] [cursor=pointer]:
+                - /url: /reviews
+            - listitem [ref=e202]:
+              - link "关于我们" [ref=e203] [cursor=pointer]:
+                - /url: /about
+        - generic [ref=e204]:
+          - heading "客户支持" [level=4] [ref=e205]
+          - list [ref=e206]:
+            - listitem [ref=e207]:
+              - link "帮助中心" [ref=e208] [cursor=pointer]:
+                - /url: /help
+            - listitem [ref=e209]:
+              - link "联系我们" [ref=e210] [cursor=pointer]:
+                - /url: /contact
+            - listitem [ref=e211]:
+              - link "隐私政策" [ref=e212] [cursor=pointer]:
+                - /url: /privacy
+            - listitem [ref=e213]:
+              - link "服务条款" [ref=e214] [cursor=pointer]:
+                - /url: /terms
+      - generic [ref=e216]:
+        - paragraph [ref=e217]: © 2025 中国体验团. All rights reserved.
+        - paragraph [ref=e218]: 专为在韩中国留学生服务
+  - button "Open Next.js Dev Tools" [ref=e224] [cursor=pointer]:
+    - img [ref=e225] [cursor=pointer]
+  - alert [ref=e229]
+```

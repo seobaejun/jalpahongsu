@@ -1,0 +1,157 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useLanguage } from '@/contexts/LanguageContext'
+import { useAuth } from '@/hooks/useAuth'
+import { getInstagramRecentExperiences } from '@/lib/instagramExperienceService'
+import { Experience } from '@/types/database'
+import ExperienceCard from './ExperienceCard'
+import Link from 'next/link'
+
+export default function InstagramExperienceList() {
+  const { t } = useLanguage()
+  const { isAuthenticated } = useAuth()
+  const [experiences, setExperiences] = useState<Experience[]>([])
+  const [loading, setLoading] = useState(true)
+  const [activeFilter, setActiveFilter] = useState('all')
+  const [visibleCount, setVisibleCount] = useState(8)
+
+  useEffect(() => {
+    loadExperiences()
+  }, [])
+
+  useEffect(() => {
+    setVisibleCount(8)
+  }, [activeFilter])
+
+  const loadExperiences = async () => {
+    try {
+      setLoading(true)
+      const result = await getInstagramRecentExperiences(20)
+      if (result.success) {
+        setExperiences(result.experiences || [])
+      }
+    } catch (error) {
+      console.error('인스타그램 체험단 로딩 오류:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const filteredExperiences = experiences.filter(exp => {
+    if (activeFilter === 'all') return true
+    return exp.status === activeFilter
+  })
+
+  const displayedExperiences = filteredExperiences.slice(0, visibleCount)
+  const hasMore = filteredExperiences.length > visibleCount
+
+
+  if (loading) {
+    return (
+      <section id="experiences-section" className="py-16 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">{t('card.loading')}</p>
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  return (
+    <section id="experiences-section" className="py-16 bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* 헤더 */}
+        <div className="text-center mb-12">
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            {t('instagram.title')}
+          </h2>
+          <p className="text-xl text-gray-600 mb-8">
+            {t('instagram.subtitle')}
+          </p>
+          
+          {/* 필터 버튼 */}
+          <div className="flex flex-wrap justify-center gap-4 mb-8">
+            <button
+              onClick={() => setActiveFilter('all')}
+              className={`px-6 py-2 rounded-full text-sm font-medium transition-colors ${
+                activeFilter === 'all' 
+                  ? 'bg-red-600 text-white' 
+                  : 'bg-white text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              {t('experiences.filter.all')}
+            </button>
+            <button
+              onClick={() => setActiveFilter('recruiting')}
+              className={`px-6 py-2 rounded-full text-sm font-medium transition-colors ${
+                activeFilter === 'recruiting' 
+                  ? 'bg-red-600 text-white' 
+                  : 'bg-white text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              {t('experiences.filter.recruiting')}
+            </button>
+            <button
+              onClick={() => setActiveFilter('ongoing')}
+              className={`px-6 py-2 rounded-full text-sm font-medium transition-colors ${
+                activeFilter === 'ongoing' 
+                  ? 'bg-red-600 text-white' 
+                  : 'bg-white text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              {t('experiences.filter.ongoing')}
+            </button>
+            <button
+              onClick={() => setActiveFilter('completed')}
+              className={`px-6 py-2 rounded-full text-sm font-medium transition-colors ${
+                activeFilter === 'completed' 
+                  ? 'bg-red-600 text-white' 
+                  : 'bg-white text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              {t('experiences.filter.completed')}
+            </button>
+          </div>
+          
+        </div>
+
+        {/* 체험단 카드 목록 */}
+        {displayedExperiences.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {displayedExperiences.map(experience => (
+              <ExperienceCard 
+                key={experience.id} 
+                experience={experience}
+                isInstagram={true}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <p className="text-gray-500 text-lg">
+              {activeFilter === 'all' 
+                ? '등록된 인스타그램 체험단이 없습니다.'
+                : `${t(`experiences.filter.${activeFilter}`)} 인스타그램 체험단이 없습니다.`
+              }
+            </p>
+          </div>
+        )}
+
+        {/* 더 보기 버튼 */}
+        {hasMore && (
+          <div className="text-center mt-12">
+            <button 
+              onClick={() => setVisibleCount(prev => prev + 8)}
+              className="bg-red-600 text-white px-8 py-3 rounded-lg text-lg font-semibold hover:bg-red-700 transition-colors"
+            >
+              {t('experiences.more')}
+            </button>
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
