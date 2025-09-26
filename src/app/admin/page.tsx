@@ -11,7 +11,7 @@ import { getRecentExperiences, getTodayExperiences, getExperienceStats } from '@
 import { getInstagramRecentExperiences, getInstagramTodayExperiences, getInstagramExperienceStats } from '@/lib/instagramExperienceService'
 import { Experience } from '@/types/database'
 import { updateUserRole, deleteUser, UserRole } from '@/lib/userRoleService'
-import { getAllApplications, getApplicationStats, updateApplicationStatus, deleteApplication, cancelApproval, cancelRejection, Application, migrateApplicationsToCollection } from '@/lib/applicationService'
+import { getAllApplications, updateApplicationStatus, deleteApplication, cancelApproval, cancelRejection, Application } from '@/lib/applicationService'
 import { 
   Users, 
   Activity, 
@@ -315,16 +315,16 @@ export default function AdminPage() {
         console.log('전체 신청서 목록:', result.applications?.map(app => ({
           experienceId: app.experienceId,
           experienceTitle: app.experienceTitle,
-          collectionSource: (app as any).collectionSource
+          collectionSource: (app as { collectionSource?: string }).collectionSource
         })))
         
         // 샤오홍슈 체험단 신청서만 필터링
         const xiaohongshuApplications = result.applications?.filter(app => {
-          const isXiaohongshu = (app as any).collectionSource === 'experiences'
+          const isXiaohongshu = (app as { collectionSource?: string }).collectionSource === 'experiences'
           console.log('신청서 필터링 확인:', {
             experienceId: app.experienceId,
             experienceTitle: app.experienceTitle,
-            collectionSource: (app as any).collectionSource,
+            collectionSource: (app as { collectionSource?: string }).collectionSource,
             willInclude: isXiaohongshu
           })
           return isXiaohongshu
@@ -334,7 +334,7 @@ export default function AdminPage() {
         console.log('샤오홍슈 신청서 목록:', xiaohongshuApplications.map(app => ({
           experienceId: app.experienceId,
           experienceTitle: app.experienceTitle,
-          collectionSource: (app as any).collectionSource
+          collectionSource: (app as { collectionSource?: string }).collectionSource
         })))
         setApplications(xiaohongshuApplications)
       } else {
@@ -353,7 +353,7 @@ export default function AdminPage() {
       if (result.success) {
         // 샤오홍슈 체험단 신청서만 필터링하여 통계 계산
         const xiaohongshuApplications = result.applications?.filter(app => {
-          return (app as any).collectionSource === 'experiences'
+          return (app as { collectionSource?: string }).collectionSource === 'experiences'
         }) || []
         
         const stats = {
@@ -727,7 +727,7 @@ export default function AdminPage() {
       } else {
         // 생성 모드
         const experiencesRef = collection(db, 'experiences')
-        const docRef = await addDoc(experiencesRef, newExperience)
+        await addDoc(experiencesRef, newExperience)
         setCardMessage('체험단 카드가 성공적으로 생성되었습니다!')
       }
       
@@ -961,17 +961,6 @@ export default function AdminPage() {
     }))
   }, [])
 
-  // 이미지 업로드 핸들러
-  const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setCardForm(prev => ({
-        ...prev,
-        image: file,
-        imagePreview: URL.createObjectURL(file)
-      }))
-    }
-  }, [])
 
   // 이미지 제거 핸들러
   const handleImageRemove = useCallback(() => {
@@ -1244,31 +1233,6 @@ export default function AdminPage() {
     }
   }
 
-  const handleSeedData = async () => {
-    try {
-      const result = await seedExperiences()
-      if (result.success) {
-        console.log('체험단 데이터가 성공적으로 저장되었습니다!')
-      } else {
-        console.log('데이터 저장 중 오류가 발생했습니다.')
-      }
-    } catch {
-      console.log('데이터 저장 중 오류가 발생했습니다.')
-    }
-  }
-
-  const handleResetData = async () => {
-    try {
-      const result = await resetExperiences()
-      if (result.success) {
-        console.log('체험단 데이터가 초기화되었습니다!')
-      } else {
-        console.log('데이터 초기화 중 오류가 발생했습니다.')
-      }
-    } catch {
-      console.log('데이터 초기화 중 오류가 발생했습니다.')
-    }
-  }
 
   // 인스타그램 데이터 로딩
   const loadInstagramData = useCallback(async () => {
@@ -1317,11 +1281,11 @@ export default function AdminPage() {
           console.log('인스타그램 신청서 필터링 확인:', {
             experienceId: app.experienceId,
             experienceTitle: app.experienceTitle,
-            collectionSource: (app as any).collectionSource,
-            willInclude: (app as any).collectionSource === 'instagram_experiences'
+            collectionSource: (app as { collectionSource?: string }).collectionSource,
+            willInclude: (app as { collectionSource?: string }).collectionSource === 'instagram_experiences'
           })
           // instagram_experiences 컬렉션에서 온 신청서만 필터링
-          return (app as any).collectionSource === 'instagram_experiences'
+          return (app as { collectionSource?: string }).collectionSource === 'instagram_experiences'
         }) || []
         
         setInstagramApplications(instagramApps)
