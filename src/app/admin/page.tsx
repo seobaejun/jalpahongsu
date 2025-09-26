@@ -292,12 +292,12 @@ export default function AdminPage() {
           }
           
           console.log('대시보드 신청인원 데이터:', counts)
-          setExperienceApplicationCounts(prev => ({ ...prev, ...counts }))
+          setExperienceApplicationCounts(prev => ({ ...prev, ...counts as Record<string, number> }))
         } catch (error) {
           console.error('대시보드 신청인원 로딩 오류:', error)
         }
       }, 1000)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('체험단 데이터 로딩 오류:', error)
       setExperienceStats({ total: 0, recruiting: 0, ongoing: 0, completed: 0 })
       setRecentExperiences([])
@@ -315,7 +315,7 @@ export default function AdminPage() {
         console.log('전체 신청서 목록:', result.applications?.map(app => ({
           experienceId: app.experienceId,
           experienceTitle: app.experienceTitle,
-          collectionSource: (app as any).collectionSource
+          collectionSource: (app as Application & { collectionSource?: string }).collectionSource
         })))
         
         // 샤오홍슈 체험단 신청서만 필터링
