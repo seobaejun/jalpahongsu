@@ -44,10 +44,12 @@ export default function AdminPage() {
   const [cardForm, setCardForm] = useState({
     activityType: '',
     title: '',
+    titleEn: '',
     titleZh: '',
     category: '',
     customCategory: '',
     description: '',
+    descriptionEn: '',
     descriptionZh: '',
     maxParticipants: '',
     experienceDate: '',
@@ -57,12 +59,16 @@ export default function AdminPage() {
     recruitmentStartDate: '',
     recruitmentEndDate: '',
     location: '',
+    locationEn: '',
     locationZh: '',
     tags: [''],
+    tagsEn: [''],
     tagsZh: [''],
     benefits: [''],
+    benefitsEn: [''],
     benefitsZh: [''],
     requirements: [''],
+    requirementsEn: [''],
     requirementsZh: [''],
     image: null as File | null,
     imagePreview: '',
@@ -101,10 +107,12 @@ export default function AdminPage() {
     activityType: '',
     title: '',
     titleEn: '',
+    titleZh: '',
     category: '',
     customCategory: '',
     description: '',
     descriptionEn: '',
+    descriptionZh: '',
     maxParticipants: '',
     experienceDate: '',
     experienceTimePeriod: '',
@@ -114,12 +122,16 @@ export default function AdminPage() {
     recruitmentEndDate: '',
     location: '',
     locationEn: '',
+    locationZh: '',
     tags: [''],
     tagsEn: [''],
+    tagsZh: [''],
     benefits: [''],
     benefitsEn: [''],
+    benefitsZh: [''],
     requirements: [''],
     requirementsEn: [''],
+    requirementsZh: [''],
     image: null as File | null,
     imagePreview: '',
     images: [] as File[],
@@ -736,10 +748,12 @@ export default function AdminPage() {
         setCardForm({
           activityType: '',
           title: '',
+          titleEn: '',
           titleZh: '',
           category: '',
           customCategory: '',
           description: '',
+          descriptionEn: '',
           descriptionZh: '',
           maxParticipants: '',
           experienceDate: '',
@@ -749,12 +763,16 @@ export default function AdminPage() {
           recruitmentStartDate: '',
           recruitmentEndDate: '',
           location: '',
+          locationEn: '',
           locationZh: '',
           benefits: [''],
+          benefitsEn: [''],
           benefitsZh: [''],
           requirements: [''],
+          requirementsEn: [''],
           requirementsZh: [''],
           tags: [''],
+          tagsEn: [''],
           tagsZh: [''],
           image: null,
           imagePreview: '',
@@ -782,10 +800,12 @@ export default function AdminPage() {
     setCardForm({
       activityType: experience.activityType || '',
       title: experience.title,
+      titleEn: experience.titleEn || '',
       titleZh: experience.titleZh || '',
       category: experience.category,
       customCategory: '',
       description: experience.description,
+      descriptionEn: experience.descriptionEn || '',
       descriptionZh: experience.descriptionZh || '',
       maxParticipants: experience.maxParticipants.toString(),
       experienceDate: experience.date || '',
@@ -795,12 +815,16 @@ export default function AdminPage() {
       recruitmentStartDate: experience.recruitmentStartDate || '',
       recruitmentEndDate: experience.recruitmentEndDate || '',
       location: experience.location || '',
+      locationEn: experience.locationEn || '',
       locationZh: experience.locationZh || '',
       tags: Array.isArray(experience.tags) && experience.tags.length > 0 ? experience.tags : [''],
+      tagsEn: Array.isArray(experience.tagsEn) && experience.tagsEn.length > 0 ? experience.tagsEn : [''],
       tagsZh: Array.isArray(experience.tagsZh) && experience.tagsZh.length > 0 ? experience.tagsZh : [''],
       benefits: Array.isArray(experience.benefits) && experience.benefits.length > 0 ? experience.benefits : [''],
+      benefitsEn: Array.isArray(experience.benefitsEn) && experience.benefitsEn.length > 0 ? experience.benefitsEn : [''],
       benefitsZh: Array.isArray(experience.benefitsZh) && experience.benefitsZh.length > 0 ? experience.benefitsZh : [''],
       requirements: Array.isArray(experience.requirements) && experience.requirements.length > 0 ? experience.requirements : [''],
+      requirementsEn: Array.isArray(experience.requirementsEn) && experience.requirementsEn.length > 0 ? experience.requirementsEn : [''],
       requirementsZh: Array.isArray(experience.requirementsZh) && experience.requirementsZh.length > 0 ? experience.requirementsZh : [''],
       image: null,
       imagePreview: experience.image || '',
@@ -1294,7 +1318,7 @@ export default function AdminPage() {
         console.log('인스타그램 오늘 체험단 로드 완료:', todayResult.experiences?.length || 0)
       }
       
-      if (statsResult.success) {
+      if (statsResult.success && statsResult.stats) {
         setInstagramStats(statsResult.stats)
         console.log('인스타그램 통계 로드 완료:', statsResult.stats)
       }
@@ -1367,27 +1391,27 @@ export default function AdminPage() {
         ) || []
         
         // 고유 사용자 추출
-        const uniqueUsers = new Set(instagramApps.map(app => app.userEmail))
+        const uniqueUsers = new Set(instagramApps.map(app => app.userId))
         const totalUsers = uniqueUsers.size
         
         // 오늘 신청한 사용자
         const today = new Date()
         const todayStr = today.toISOString().split('T')[0]
         const todayApps = instagramApps.filter(app => {
-          const appDate = new Date(app.createdAt.seconds * 1000).toISOString().split('T')[0]
+          const appDate = new Date(app.createdAt).toISOString().split('T')[0]
           return appDate === todayStr
         })
-        const todayUsers = new Set(todayApps.map(app => app.userEmail)).size
+        const todayUsers = new Set(todayApps.map(app => app.userId)).size
         
         // 이번 주 신청한 사용자
         const weekStart = new Date(today)
         weekStart.setDate(today.getDate() - today.getDay())
         const weekStartStr = weekStart.toISOString().split('T')[0]
         const thisWeekApps = instagramApps.filter(app => {
-          const appDate = new Date(app.createdAt.seconds * 1000).toISOString().split('T')[0]
+          const appDate = new Date(app.createdAt).toISOString().split('T')[0]
           return appDate >= weekStartStr
         })
-        const thisWeekUsers = new Set(thisWeekApps.map(app => app.userEmail)).size
+        const thisWeekUsers = new Set(thisWeekApps.map(app => app.userId)).size
         
         const instagramUserStats = {
           totalUsers,
@@ -1530,7 +1554,6 @@ export default function AdminPage() {
       
       // 데이터 새로고침
       loadInstagramApplications()
-      loadInstagramApplicationStats()
       
     } catch (error) {
       console.error('인스타그램 신청 상태 업데이트 오류:', error)
@@ -1553,7 +1576,6 @@ export default function AdminPage() {
       
       // 데이터 새로고침
       loadInstagramApplications()
-      loadInstagramApplicationStats()
       
     } catch (error) {
       console.error('인스타그램 승인 취소 오류:', error)
@@ -1576,7 +1598,6 @@ export default function AdminPage() {
       
       // 데이터 새로고침
       loadInstagramApplications()
-      loadInstagramApplicationStats()
       
     } catch (error) {
       console.error('인스타그램 거부 취소 오류:', error)
@@ -1603,7 +1624,6 @@ export default function AdminPage() {
       
       // 데이터 새로고침
       loadInstagramApplications()
-      loadInstagramApplicationStats()
       
     } catch (error) {
       console.error('인스타그램 신청 삭제 오류:', error)
@@ -1881,10 +1901,12 @@ export default function AdminPage() {
       setInstagramCardForm({
         activityType: '',
         title: '',
+        titleEn: '',
         titleZh: '',
         category: '',
         customCategory: '',
         description: '',
+        descriptionEn: '',
         descriptionZh: '',
         maxParticipants: '',
         experienceDate: '',
@@ -1894,10 +1916,16 @@ export default function AdminPage() {
         recruitmentStartDate: '',
         recruitmentEndDate: '',
         location: '',
+        locationEn: '',
         locationZh: '',
+        tags: [''],
+        tagsEn: [''],
+        tagsZh: [''],
         benefits: [''],
+        benefitsEn: [''],
         benefitsZh: [''],
         requirements: [''],
+        requirementsEn: [''],
         requirementsZh: [''],
         image: null,
         imagePreview: '',
@@ -1927,25 +1955,31 @@ export default function AdminPage() {
       activityType: experience.activityType || '',
       title: experience.title || '',
       titleEn: experience.titleEn || '',
+      titleZh: experience.titleZh || '',
       category: experience.category || '',
       customCategory: '',
       description: experience.description || '',
       descriptionEn: experience.descriptionEn || '',
+      descriptionZh: experience.descriptionZh || '',
       maxParticipants: experience.maxParticipants?.toString() || '',
-      experienceDate: experience.experienceDate || '',
-      experienceTimePeriod: experience.experienceTimePeriod || '',
-      experienceTimeHour: experience.experienceTimeHour || '',
-      experienceTimeMinute: experience.experienceTimeMinute || '',
+      experienceDate: experience.date || '',
+      experienceTimePeriod: '',
+      experienceTimeHour: '',
+      experienceTimeMinute: '',
       recruitmentStartDate: experience.recruitmentStartDate || '',
       recruitmentEndDate: experience.recruitmentEndDate || '',
       location: experience.location || '',
       locationEn: experience.locationEn || '',
+      locationZh: experience.locationZh || '',
       tags: Array.isArray(experience.tags) && experience.tags.length > 0 ? experience.tags : [''],
       tagsEn: Array.isArray(experience.tagsEn) && experience.tagsEn.length > 0 ? experience.tagsEn : [''],
+      tagsZh: Array.isArray(experience.tagsZh) && experience.tagsZh.length > 0 ? experience.tagsZh : [''],
       benefits: Array.isArray(experience.benefits) && experience.benefits.length > 0 ? experience.benefits : [''],
       benefitsEn: Array.isArray(experience.benefitsEn) && experience.benefitsEn.length > 0 ? experience.benefitsEn : [''],
+      benefitsZh: Array.isArray(experience.benefitsZh) && experience.benefitsZh.length > 0 ? experience.benefitsZh : [''],
       requirements: Array.isArray(experience.requirements) && experience.requirements.length > 0 ? experience.requirements : [''],
       requirementsEn: Array.isArray(experience.requirementsEn) && experience.requirementsEn.length > 0 ? experience.requirementsEn : [''],
+      requirementsZh: Array.isArray(experience.requirementsZh) && experience.requirementsZh.length > 0 ? experience.requirementsZh : [''],
       image: null,
       imagePreview: experience.image || '',
       images: [],
@@ -2013,20 +2047,17 @@ export default function AdminPage() {
           const experience = instagramAllExperiences.find(exp => exp.id === app.experienceId)
           return {
             '신청자 이름': app.name || '이름 없음',
-            '신청자 이메일': app.email || '이메일 없음',
-            '신청자 전화번호': app.phone || '전화번호 없음',
             '체험단 제목': experience?.title || '체험단 없음',
             '체험단 카테고리': experience?.category || '카테고리 없음',
             '신청 상태': app.status === 'approved' ? '승인' : 
                         app.status === 'rejected' ? '거절' : '대기중',
-            '신청 일시': app.createdAt ? new Date(app.createdAt.seconds ? app.createdAt.seconds * 1000 : app.createdAt).toLocaleString('ko-KR') : '날짜 없음',
+            '신청 일시': app.createdAt ? new Date(app.createdAt).toLocaleString('ko-KR') : '날짜 없음',
             '방문 예정일': app.visitDate || '날짜 없음',
             '방문 시간': `${app.visitTimePeriod} ${app.visitTimeHour}:${app.visitTimeMinute}` || '시간 없음',
             '방문 인원': `${app.visitCount}명` || '인원 없음',
             '팔로워 수': `${app.followerCount?.toLocaleString()}명` || '0명',
             '위쳇 ID': app.wechatId || 'ID 없음',
-            '인스타그램 ID': app.xiaohongshuId || 'ID 없음',
-            '특이사항': app.notes || '없음'
+            '인스타그램 ID': app.xiaohongshuId || 'ID 없음'
           }
         })
         
@@ -3600,10 +3631,12 @@ export default function AdminPage() {
                       setCardForm({
                         activityType: '',
                         title: '',
+                        titleEn: '',
                         titleZh: '',
                         category: '',
                         customCategory: '',
                         description: '',
+                        descriptionEn: '',
                         descriptionZh: '',
                         maxParticipants: '',
                         experienceDate: '',
@@ -3613,10 +3646,16 @@ export default function AdminPage() {
                         recruitmentStartDate: '',
                         recruitmentEndDate: '',
                         location: '',
+                        locationEn: '',
                         locationZh: '',
+                        tags: [''],
+                        tagsEn: [''],
+                        tagsZh: [''],
                         benefits: [''],
+                        benefitsEn: [''],
                         benefitsZh: [''],
                         requirements: [''],
+                        requirementsEn: [''],
                         requirementsZh: [''],
                         image: null,
                         imagePreview: '',
@@ -4331,7 +4370,6 @@ export default function AdminPage() {
                 <button
                   onClick={() => {
                     loadInstagramApplications()
-                    loadInstagramApplicationStats()
                   }}
                   disabled={applicationsLoading}
                   className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
@@ -5074,10 +5112,12 @@ export default function AdminPage() {
                       setInstagramCardForm({
                         activityType: '',
                         title: '',
+                        titleEn: '',
                         titleZh: '',
                         category: '',
                         customCategory: '',
                         description: '',
+                        descriptionEn: '',
                         descriptionZh: '',
                         maxParticipants: '',
                         experienceDate: '',
@@ -5087,10 +5127,16 @@ export default function AdminPage() {
                         recruitmentStartDate: '',
                         recruitmentEndDate: '',
                         location: '',
+                        locationEn: '',
                         locationZh: '',
+                        tags: [''],
+                        tagsEn: [''],
+                        tagsZh: [''],
                         benefits: [''],
+                        benefitsEn: [''],
                         benefitsZh: [''],
                         requirements: [''],
+                        requirementsEn: [''],
                         requirementsZh: [''],
                         image: null,
                         imagePreview: '',
@@ -5352,7 +5398,7 @@ export default function AdminPage() {
                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                 }`}
               >
-                <Icon className="h-5 w-5" />
+                {Icon && <Icon className="h-5 w-5" />}
                 <span className="font-medium">{item.label}</span>
               </button>
             )

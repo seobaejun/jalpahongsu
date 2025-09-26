@@ -63,12 +63,10 @@ export const getInstagramTodayExperiences = async () => {
           const date = new Date(experience.date)
           experienceDate = date.toISOString().split('T')[0]
         }
-      } else if (experience.date instanceof Date) {
-        // Date 객체인 경우
-        experienceDate = experience.date.toISOString().split('T')[0]
       } else if (experience.date && typeof experience.date === 'object' && 'seconds' in experience.date) {
         // Firestore Timestamp인 경우
-        const date = new Date(experience.date.seconds * 1000)
+        const timestamp = experience.date as { seconds: number }
+        const date = new Date(timestamp.seconds * 1000)
         experienceDate = date.toISOString().split('T')[0]
       } else {
         return false

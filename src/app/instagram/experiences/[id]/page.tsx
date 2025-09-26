@@ -160,12 +160,12 @@ export default function InstagramExperienceDetailPage() {
             description: experienceData.description || '',
             descriptionZh: experienceData.descriptionZh || '',
             descriptionEn: experienceData.descriptionEn || '',
-            benefits: experienceData.benefits || '',
-            benefitsZh: experienceData.benefitsZh || '',
-            benefitsEn: experienceData.benefitsEn || '',
-            requirements: experienceData.requirements || '',
-            requirementsZh: experienceData.requirementsZh || '',
-            requirementsEn: experienceData.requirementsEn || '',
+            benefits: Array.isArray(experienceData.benefits) ? experienceData.benefits : (experienceData.benefits ? [experienceData.benefits] : []),
+            benefitsZh: Array.isArray(experienceData.benefitsZh) ? experienceData.benefitsZh : (experienceData.benefitsZh ? [experienceData.benefitsZh] : []),
+            benefitsEn: Array.isArray(experienceData.benefitsEn) ? experienceData.benefitsEn : (experienceData.benefitsEn ? [experienceData.benefitsEn] : []),
+            requirements: Array.isArray(experienceData.requirements) ? experienceData.requirements : (experienceData.requirements ? [experienceData.requirements] : []),
+            requirementsZh: Array.isArray(experienceData.requirementsZh) ? experienceData.requirementsZh : (experienceData.requirementsZh ? [experienceData.requirementsZh] : []),
+            requirementsEn: Array.isArray(experienceData.requirementsEn) ? experienceData.requirementsEn : (experienceData.requirementsEn ? [experienceData.requirementsEn] : []),
             location: experienceData.location || '',
             locationZh: experienceData.locationZh || '',
             locationEn: experienceData.locationEn || '',
@@ -177,9 +177,8 @@ export default function InstagramExperienceDetailPage() {
             isNew: experienceData.isNew || false,
             image: experienceData.image || '',
             images: experienceData.images || [],
-            createdAt: experienceData.createdAt,
-            currentLanguage 
-          })
+            createdAt: experienceData.createdAt
+          }
           setExperience(processedExperience)
           
           // 이미지 로딩 상태 초기화
@@ -248,10 +247,19 @@ export default function InstagramExperienceDetailPage() {
       const applicationData = {
         experienceId: params.id as string,
         experienceTitle: displayTitle,
-        ...formData,
+        name: formData.name,
+        passportNumber: formData.passportNumber,
+        visitDate: formData.visitDate,
+        visitTime: `${formData.visitTimeHour}:${formData.visitTimeMinute}`,
+        visitTimePeriod: formData.visitTimePeriod,
+        visitTimeHour: formData.visitTimeHour,
+        visitTimeMinute: formData.visitTimeMinute,
+        visitCount: formData.visitCount,
+        wechatId: formData.wechatId,
+        xiaohongshuId: formData.instagramId, // instagramId를 xiaohongshuId로 매핑
+        followerCount: formData.followerCount,
         userId: user?.uid || '', // 사용자 ID 추가
-        appliedAt: new Date(),
-        status: 'pending'
+        status: 'pending' as const
       }
 
       console.log('제출할 신청서 데이터:', applicationData)
@@ -812,34 +820,11 @@ export default function InstagramExperienceDetailPage() {
                           return t('detail.noDateInfo')
                         }
                         
-                        let createdAt: Date | null = null
-                        
-                        try {
-                          if (experience.createdAt instanceof Date) {
-                            createdAt = experience.createdAt
-                          } else if (experience.createdAt.toDate && typeof experience.createdAt.toDate === 'function') {
-                            createdAt = experience.createdAt.toDate()
-                          } else if (typeof experience.createdAt === 'string') {
-                            createdAt = new Date(experience.createdAt)
-                          } else if (experience.createdAt.seconds) {
-                            createdAt = new Date(experience.createdAt.seconds * 1000)
-                          } else {
-                            return t('detail.noDateInfo')
-                          }
-                        } catch (error) {
-                          console.error('날짜 파싱 오류:', error)
-                          return t('detail.noDateInfo')
-                        }
-                        
-                        if (!createdAt || isNaN(createdAt.getTime())) {
-                          return t('detail.noDateInfo')
-                        }
-                        
-                        return createdAt.toLocaleDateString('ko-KR', {
+                        return experience.createdAt ? experience.createdAt.toLocaleDateString('ko-KR', {
                           year: 'numeric',
                           month: 'numeric',
                           day: 'numeric'
-                        }).replace(/\./g, '. ')
+                        }) : t('detail.noDateInfo').replace(/\./g, '. ')
                       })()}
                     </span>
                   </div>

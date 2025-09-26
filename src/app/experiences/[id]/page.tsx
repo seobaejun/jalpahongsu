@@ -260,7 +260,7 @@ export default function ExperienceDetailPage() {
         visitCount: formData.visitCount,
         wechatId: formData.wechatId,
         xiaohongshuId: formData.xiaohongshuId,
-        followerCount: parseInt(formData.followerCount) || 0,
+        followerCount: formData.followerCount,
         userId: user?.uid || '', // 사용자 ID 추가
         status: 'pending' as const
       }
@@ -844,31 +844,7 @@ export default function ExperienceDetailPage() {
                           return t('detail.noDateInfo')
                         }
                         
-                        let createdAt: Date | null = null
-                        
-                        try {
-                          if (experience.createdAt instanceof Date) {
-                            // 이미 Date 객체인 경우
-                            createdAt = experience.createdAt
-                          } else if (experience.createdAt.toDate && typeof experience.createdAt.toDate === 'function') {
-                            // Firestore Timestamp 객체인 경우
-                            createdAt = experience.createdAt.toDate()
-                          } else if (typeof experience.createdAt === 'string') {
-                            // 문자열인 경우
-                            createdAt = new Date(experience.createdAt)
-                          } else if (experience.createdAt.seconds) {
-                            // Firestore Timestamp 형태인 경우
-                            createdAt = new Date(experience.createdAt.seconds * 1000)
-                          } else {
-                            console.warn('알 수 없는 createdAt 형식:', experience.createdAt)
-                            return t('detail.noDateInfo')
-                          }
-                          
-                          return createdAt ? createdAt.toLocaleDateString('ko-KR') : t('detail.noDateInfo')
-                        } catch (error) {
-                          console.error('등록일 변환 오류:', error)
-                          return t('detail.noDateInfo')
-                        }
+                        return experience.createdAt ? experience.createdAt.toLocaleDateString('ko-KR') : t('detail.noDateInfo')
                       })()}
                     </span>
                   </div>
