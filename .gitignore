@@ -43,3 +43,7 @@ next-env.d.ts
 # firebase
 firebase-service-account.json
 firebase-debug.log
+
+# backup folders
+backup_20241220_complete/
+backup_20241227_clean_state/
