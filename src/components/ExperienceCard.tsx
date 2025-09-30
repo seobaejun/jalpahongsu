@@ -448,14 +448,29 @@ export default function ExperienceCard({ experience, isInstagram = false }: Expe
         </p>
 
         {/* 참여 정보 */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center text-sm text-gray-600">
-            <span className="font-medium text-red-600">
-              {loadingApplications ? t('card.loading') : `${applicationCount} / ${experience.maxParticipants}${t('card.recruiting')}`}
-            </span>
+        <div className="mb-4">
+          {/* 모바일: 세로 배치, PC: 가로 배치 */}
+          <div className="block sm:hidden space-y-1">
+            <div className="text-sm text-gray-600">
+              <span className="font-medium text-red-600">
+                {loadingApplications ? t('card.loading') : `${applicationCount} / ${experience.maxParticipants}${t('card.recruiting')}`}
+              </span>
+            </div>
+            <div className="text-sm text-gray-600">
+              {t('card.daysLeft')} <span className="font-medium text-orange-600">{daysUntilEnd}</span> {t('card.days')}
+            </div>
           </div>
-          <div className="text-sm text-gray-600">
-            {t('card.daysLeft')} <span className="font-medium text-orange-600">{daysUntilEnd}</span> {t('card.days')}
+          
+          {/* PC: 기존 가로 배치 */}
+          <div className="hidden sm:flex items-center justify-between">
+            <div className="flex items-center text-sm text-gray-600">
+              <span className="font-medium text-red-600">
+                {loadingApplications ? t('card.loading') : `${applicationCount} / ${experience.maxParticipants}${t('card.recruiting')}`}
+              </span>
+            </div>
+            <div className="text-sm text-gray-600">
+              {t('card.daysLeft')} <span className="font-medium text-orange-600">{daysUntilEnd}</span> {t('card.days')}
+            </div>
           </div>
         </div>
 
