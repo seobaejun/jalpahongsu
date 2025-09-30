@@ -23,6 +23,7 @@ export interface Experience {
   descriptionEn?: string;
   category: '配送型体验' | '访问型体验';
   tags: string[];
+  tagsZh?: string[];
   tagsEn?: string[];
   participants: number;
   maxParticipants: number;

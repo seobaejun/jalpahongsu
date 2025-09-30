@@ -15,11 +15,12 @@ export interface Application {
   visitCount: string
   wechatId: string
   xiaohongshuId: string
-  followerCount: number
+  followerCount: string
   userId?: string // 사용자 ID 추가
   status: 'pending' | 'approved' | 'rejected'
   createdAt: Date
   updatedAt: Date
+  collectionSource?: 'experiences' | 'instagram_experiences' // 컬렉션 소스 추가
 }
 
 // 인스타그램 체험단 신청서 제출

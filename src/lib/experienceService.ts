@@ -44,9 +44,7 @@ export const getTodayExperiences = async () => {
       
       // 날짜 형식 변환 (다양한 형식 지원)
       let expDateString = ''
-      if (exp.date instanceof Date) {
-        expDateString = exp.date.toISOString().split('T')[0]
-      } else if (typeof exp.date === 'string') {
+      if (typeof exp.date === 'string') {
         // YYYY-MM-DD 형식인지 확인
         if (exp.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
           expDateString = exp.date

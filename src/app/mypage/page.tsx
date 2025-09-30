@@ -209,25 +209,8 @@ export default function MyPage() {
           console.log('createdAt 원본 데이터:', app.createdAt, typeof app.createdAt)
           
           if (app.createdAt) {
-            if (app.createdAt.toDate && typeof app.createdAt.toDate === 'function') {
-              // Firestore Timestamp 객체인 경우
-              createdAt = app.createdAt.toDate()
-              console.log('Firestore Timestamp로 변환:', createdAt)
-            } else if (app.createdAt instanceof Date) {
-              // 이미 Date 객체인 경우
-              createdAt = app.createdAt
-              console.log('이미 Date 객체:', createdAt)
-            } else if (typeof app.createdAt === 'string') {
-              // 문자열인 경우
-              createdAt = new Date(app.createdAt)
-              console.log('문자열에서 Date로 변환:', createdAt)
-            } else if (app.createdAt.seconds) {
-              // Firestore Timestamp 형태인 경우
-              createdAt = new Date(app.createdAt.seconds * 1000)
-              console.log('seconds로 Date 변환:', createdAt)
-            } else {
-              console.warn('알 수 없는 createdAt 형식:', app.createdAt)
-            }
+            createdAt = app.createdAt instanceof Date ? app.createdAt : new Date(app.createdAt)
+            console.log('Date로 변환:', createdAt)
           }
           
           const userApp: UserApplication = {
@@ -329,25 +312,8 @@ export default function MyPage() {
           console.log('인스타그램 createdAt 원본 데이터:', app.createdAt, typeof app.createdAt)
           
           if (app.createdAt) {
-            if (app.createdAt.toDate && typeof app.createdAt.toDate === 'function') {
-              // Firestore Timestamp 객체인 경우
-              createdAt = app.createdAt.toDate()
-              console.log('인스타그램 Firestore Timestamp로 변환:', createdAt)
-            } else if (app.createdAt instanceof Date) {
-              // 이미 Date 객체인 경우
-              createdAt = app.createdAt
-              console.log('인스타그램 이미 Date 객체:', createdAt)
-            } else if (typeof app.createdAt === 'string') {
-              // 문자열인 경우
-              createdAt = new Date(app.createdAt)
-              console.log('인스타그램 문자열에서 Date로 변환:', createdAt)
-            } else if (app.createdAt.seconds) {
-              // Firestore Timestamp 형태인 경우
-              createdAt = new Date(app.createdAt.seconds * 1000)
-              console.log('인스타그램 seconds로 Date 변환:', createdAt)
-            } else {
-              console.warn('인스타그램 알 수 없는 createdAt 형식:', app.createdAt)
-            }
+            createdAt = app.createdAt instanceof Date ? app.createdAt : new Date(app.createdAt)
+            console.log('인스타그램 Date로 변환:', createdAt)
           }
           
           const userApp: UserApplication = {
