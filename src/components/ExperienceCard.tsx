@@ -404,7 +404,7 @@ export default function ExperienceCard({ experience, isInstagram = false }: Expe
 
         {/* 상태 배지 */}
         <div className="absolute top-3 right-3">
-          <span className={`text-white px-2 py-1 rounded text-xs font-medium ${
+          <span className={`text-white px-2 py-1 rounded text-xs font-medium whitespace-nowrap ${
             currentStatus === 'recruiting'
               ? 'bg-green-500' // 모집중
               : currentStatus === 'ongoing'
@@ -422,8 +422,8 @@ export default function ExperienceCard({ experience, isInstagram = false }: Expe
       </div>
 
       {/* 콘텐츠 */}
-      <div className="p-4">
-        <h3 className="text-base font-semibold text-gray-900 mb-2 line-clamp-1">
+      <div className="p-3 sm:p-4">
+        <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-2 line-clamp-1">
           {(() => {
             if (currentLanguage === 'zh') {
               return experience.titleZh || translateData(experience.title)
@@ -435,7 +435,7 @@ export default function ExperienceCard({ experience, isInstagram = false }: Expe
           })()}
         </h3>
         
-        <p className="text-gray-600 text-sm mb-4 line-clamp-2 min-h-[2.5rem]">
+        <p className="text-gray-600 text-xs sm:text-sm mb-4 line-clamp-2 min-h-[2.5rem]">
           {(() => {
             if (currentLanguage === 'zh') {
               return experience.descriptionZh || translateData(experience.description)

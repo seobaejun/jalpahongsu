@@ -122,10 +122,10 @@ export default function ExperienceList() {
         </div>
 
           {/* 필터 버튼 */}
-          <div className="flex flex-wrap justify-center gap-4 mb-8">
+          <div className="flex flex-wrap justify-center gap-2 sm:gap-4 mb-8">
             <button
               onClick={() => setFilter('all')}
-              className={`px-6 py-2 rounded-full text-sm font-medium transition-colors ${
+              className={`px-3 py-1.5 sm:px-6 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-colors ${
                 filter === 'all' 
                   ? 'bg-red-600 text-white' 
                   : 'bg-white text-gray-700 hover:bg-gray-100'
@@ -135,7 +135,7 @@ export default function ExperienceList() {
             </button>
             <button
               onClick={() => setFilter('recruiting')}
-              className={`px-6 py-2 rounded-full text-sm font-medium transition-colors ${
+              className={`px-3 py-1.5 sm:px-6 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-colors ${
                 filter === 'recruiting' 
                   ? 'bg-red-600 text-white' 
                   : 'bg-white text-gray-700 hover:bg-gray-100'
@@ -145,7 +145,7 @@ export default function ExperienceList() {
             </button>
             <button
               onClick={() => setFilter('ongoing')}
-              className={`px-6 py-2 rounded-full text-sm font-medium transition-colors ${
+              className={`px-3 py-1.5 sm:px-6 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-colors ${
                 filter === 'ongoing' 
                   ? 'bg-red-600 text-white' 
                   : 'bg-white text-gray-700 hover:bg-gray-100'
@@ -155,7 +155,7 @@ export default function ExperienceList() {
             </button>
             <button
               onClick={() => setFilter('completed')}
-              className={`px-6 py-2 rounded-full text-sm font-medium transition-colors ${
+              className={`px-3 py-1.5 sm:px-6 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-colors ${
                 filter === 'completed' 
                   ? 'bg-red-600 text-white' 
                   : 'bg-white text-gray-700 hover:bg-gray-100'
@@ -166,7 +166,7 @@ export default function ExperienceList() {
           </div>
 
           {/* 체험단 카드 그리드 */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3">
             {displayedExperiences.map((experience) => (
               <ExperienceCard key={experience.id} experience={experience} />
             ))}

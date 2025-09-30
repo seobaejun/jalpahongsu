@@ -29,11 +29,15 @@ export default function Header() {
     <header className="bg-white shadow-sm border-b">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          {/* 로고 */}
-            <div className="flex-shrink-0">
-              <Link href="/" className="text-2xl font-bold text-red-600">
+          {/* 로고 및 모바일 언어 버튼 */}
+            <div className="flex-shrink-0 flex items-center space-x-2">
+              <Link href="/" className="text-lg md:text-2xl font-bold text-red-600">
                 {t('site.title')}
               </Link>
+              {/* 모바일 언어 전환 */}
+              <div className="md:hidden">
+                <LanguageSwitcher />
+              </div>
             </div>
 
             {/* 데스크톱 네비게이션 */}
@@ -103,29 +107,26 @@ export default function Header() {
           {/* 모바일 메뉴 */}
           {isMenuOpen && (
             <div className="md:hidden">
-              <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-white border-t">
-                <Link href="/" className="block text-gray-700 hover:text-red-600 px-3 py-2 text-base font-medium">
-                  {t('nav.home')}
-                </Link>
-                <Link href="/instagram" className="block text-gray-700 hover:text-red-600 px-3 py-2 text-base font-medium">
-                  {t('nav.instagram')}
-                </Link>
-                {(!adminLoading && isAdmin) || (isAuthenticated && user?.email === 'sprince1004@naver.com') ? (
-                  <Link href="/admin" className="block text-gray-700 hover:text-red-600 px-3 py-2 text-base font-medium">
-                    {t('nav.admin')}
+              <div className="px-2 pt-2 pb-3 sm:px-3 bg-white border-t">
+                <div className={`grid gap-2 ${(!adminLoading && isAdmin) || (isAuthenticated && user?.email === 'sprince1004@naver.com') ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                  <Link href="/" className="text-gray-700 hover:text-white px-2 py-2 text-xs font-medium text-center border border-pink-200 rounded bg-pink-50 hover:bg-pink-200 transition-colors">
+                    {t('nav.home')}
                   </Link>
-                ) : null}
-                {isAuthenticated && (
-                  <Link href="/mypage" className="block text-gray-700 hover:text-red-600 px-3 py-2 text-base font-medium">
-                    {t('nav.mypage')}
+                  <Link href="/instagram" className="text-gray-700 hover:text-white px-2 py-2 text-xs font-medium text-center border border-purple-200 rounded bg-purple-50 hover:bg-purple-200 transition-colors">
+                    {t('nav.instagram')}
                   </Link>
-                )}
-              <div className="border-t pt-4">
-                {/* 모바일 언어 전환 */}
-                <div className="px-3 py-2">
-                  <LanguageSwitcher />
+                  {(!adminLoading && isAdmin) || (isAuthenticated && user?.email === 'sprince1004@naver.com') ? (
+                    <Link href="/admin" className="text-gray-700 hover:text-white px-2 py-2 text-xs font-medium text-center border border-blue-200 rounded bg-blue-50 hover:bg-blue-200 transition-colors">
+                      {t('nav.admin')}
+                    </Link>
+                  ) : null}
+                  {isAuthenticated && (
+                    <Link href="/mypage" className="text-gray-700 hover:text-white px-2 py-2 text-xs font-medium text-center border border-green-200 rounded bg-green-50 hover:bg-green-200 transition-colors">
+                      {t('nav.mypage')}
+                    </Link>
+                  )}
                 </div>
-                
+              <div className="border-t pt-4 mt-2">
                   {loading ? (
                     <div className="text-gray-500 px-3 py-2">{t('nav.loading')}</div>
                   ) : isAuthenticated ? (

@@ -11,7 +11,7 @@ import { getRecentExperiences, getTodayExperiences, getExperienceStats } from '@
 import { getInstagramRecentExperiences, getInstagramTodayExperiences, getInstagramExperienceStats } from '@/lib/instagramExperienceService'
 import { Experience } from '@/types/database'
 import { updateUserRole, deleteUser, UserRole } from '@/lib/userRoleService'
-import { getAllApplications, updateApplicationStatus, deleteApplication, cancelApproval, cancelRejection, Application } from '@/lib/applicationService'
+import { getAllApplications, getApplicationStats, updateApplicationStatus, deleteApplication, cancelApproval, cancelRejection, Application, migrateApplicationsToCollection } from '@/lib/applicationService'
 import { 
   Users, 
   Activity, 
@@ -44,10 +44,12 @@ export default function AdminPage() {
   const [cardForm, setCardForm] = useState({
     activityType: '',
     title: '',
+    titleEn: '',
     titleZh: '',
     category: '',
     customCategory: '',
     description: '',
+    descriptionEn: '',
     descriptionZh: '',
     maxParticipants: '',
     experienceDate: '',
@@ -57,12 +59,16 @@ export default function AdminPage() {
     recruitmentStartDate: '',
     recruitmentEndDate: '',
     location: '',
+    locationEn: '',
     locationZh: '',
     tags: [''],
+    tagsEn: [''],
     tagsZh: [''],
     benefits: [''],
+    benefitsEn: [''],
     benefitsZh: [''],
     requirements: [''],
+    requirementsEn: [''],
     requirementsZh: [''],
     image: null as File | null,
     imagePreview: '',
@@ -101,10 +107,12 @@ export default function AdminPage() {
     activityType: '',
     title: '',
     titleEn: '',
+    titleZh: '',
     category: '',
     customCategory: '',
     description: '',
     descriptionEn: '',
+    descriptionZh: '',
     maxParticipants: '',
     experienceDate: '',
     experienceTimePeriod: '',
@@ -114,12 +122,16 @@ export default function AdminPage() {
     recruitmentEndDate: '',
     location: '',
     locationEn: '',
+    locationZh: '',
     tags: [''],
     tagsEn: [''],
+    tagsZh: [''],
     benefits: [''],
     benefitsEn: [''],
+    benefitsZh: [''],
     requirements: [''],
     requirementsEn: [''],
+    requirementsZh: [''],
     image: null as File | null,
     imagePreview: '',
     images: [] as File[],
@@ -292,12 +304,12 @@ export default function AdminPage() {
           }
           
           console.log('대시보드 신청인원 데이터:', counts)
-          setExperienceApplicationCounts(prev => ({ ...prev, ...counts }))
-        } catch (error) {
+          setExperienceApplicationCounts(prev => ({ ...prev, ...counts as Record<string, number> }))
+        } catch (error: unknown) {
           console.error('대시보드 신청인원 로딩 오류:', error)
         }
       }, 1000)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('체험단 데이터 로딩 오류:', error)
       setExperienceStats({ total: 0, recruiting: 0, ongoing: 0, completed: 0 })
       setRecentExperiences([])
@@ -315,16 +327,16 @@ export default function AdminPage() {
         console.log('전체 신청서 목록:', result.applications?.map(app => ({
           experienceId: app.experienceId,
           experienceTitle: app.experienceTitle,
-          collectionSource: (app as { collectionSource?: string }).collectionSource
+          collectionSource: (app as Application & { collectionSource?: string }).collectionSource
         })))
         
         // 샤오홍슈 체험단 신청서만 필터링
         const xiaohongshuApplications = result.applications?.filter(app => {
-          const isXiaohongshu = (app as { collectionSource?: string }).collectionSource === 'experiences'
+          const isXiaohongshu = (app as Application & { collectionSource?: string }).collectionSource === 'experiences'
           console.log('신청서 필터링 확인:', {
             experienceId: app.experienceId,
             experienceTitle: app.experienceTitle,
-            collectionSource: (app as { collectionSource?: string }).collectionSource,
+            collectionSource: (app as Application & { collectionSource?: string }).collectionSource,
             willInclude: isXiaohongshu
           })
           return isXiaohongshu
@@ -334,7 +346,7 @@ export default function AdminPage() {
         console.log('샤오홍슈 신청서 목록:', xiaohongshuApplications.map(app => ({
           experienceId: app.experienceId,
           experienceTitle: app.experienceTitle,
-          collectionSource: (app as { collectionSource?: string }).collectionSource
+          collectionSource: (app as any).collectionSource
         })))
         setApplications(xiaohongshuApplications)
       } else {
@@ -353,7 +365,7 @@ export default function AdminPage() {
       if (result.success) {
         // 샤오홍슈 체험단 신청서만 필터링하여 통계 계산
         const xiaohongshuApplications = result.applications?.filter(app => {
-          return (app as { collectionSource?: string }).collectionSource === 'experiences'
+          return (app as any).collectionSource === 'experiences'
         }) || []
         
         const stats = {
@@ -727,7 +739,7 @@ export default function AdminPage() {
       } else {
         // 생성 모드
         const experiencesRef = collection(db, 'experiences')
-        await addDoc(experiencesRef, newExperience)
+        const docRef = await addDoc(experiencesRef, newExperience)
         setCardMessage('체험단 카드가 성공적으로 생성되었습니다!')
       }
       
@@ -736,10 +748,12 @@ export default function AdminPage() {
         setCardForm({
           activityType: '',
           title: '',
+          titleEn: '',
           titleZh: '',
           category: '',
           customCategory: '',
           description: '',
+          descriptionEn: '',
           descriptionZh: '',
           maxParticipants: '',
           experienceDate: '',
@@ -749,15 +763,21 @@ export default function AdminPage() {
           recruitmentStartDate: '',
           recruitmentEndDate: '',
           location: '',
+          locationEn: '',
           locationZh: '',
           benefits: [''],
+          benefitsEn: [''],
           benefitsZh: [''],
           requirements: [''],
+          requirementsEn: [''],
           requirementsZh: [''],
+          tags: [''],
+          tagsEn: [''],
+          tagsZh: [''],
           image: null,
           imagePreview: '',
           images: [],
-          imagePreviews: []
+          imagePreviews: [] as string[]
         })
       }
       setShowCustomCategory(false)
@@ -780,10 +800,12 @@ export default function AdminPage() {
     setCardForm({
       activityType: experience.activityType || '',
       title: experience.title,
+      titleEn: experience.titleEn || '',
       titleZh: experience.titleZh || '',
       category: experience.category,
       customCategory: '',
       description: experience.description,
+      descriptionEn: experience.descriptionEn || '',
       descriptionZh: experience.descriptionZh || '',
       maxParticipants: experience.maxParticipants.toString(),
       experienceDate: experience.date || '',
@@ -793,12 +815,16 @@ export default function AdminPage() {
       recruitmentStartDate: experience.recruitmentStartDate || '',
       recruitmentEndDate: experience.recruitmentEndDate || '',
       location: experience.location || '',
+      locationEn: experience.locationEn || '',
       locationZh: experience.locationZh || '',
       tags: Array.isArray(experience.tags) && experience.tags.length > 0 ? experience.tags : [''],
+      tagsEn: Array.isArray(experience.tagsEn) && experience.tagsEn.length > 0 ? experience.tagsEn : [''],
       tagsZh: Array.isArray(experience.tagsZh) && experience.tagsZh.length > 0 ? experience.tagsZh : [''],
       benefits: Array.isArray(experience.benefits) && experience.benefits.length > 0 ? experience.benefits : [''],
+      benefitsEn: Array.isArray(experience.benefitsEn) && experience.benefitsEn.length > 0 ? experience.benefitsEn : [''],
       benefitsZh: Array.isArray(experience.benefitsZh) && experience.benefitsZh.length > 0 ? experience.benefitsZh : [''],
       requirements: Array.isArray(experience.requirements) && experience.requirements.length > 0 ? experience.requirements : [''],
+      requirementsEn: Array.isArray(experience.requirementsEn) && experience.requirementsEn.length > 0 ? experience.requirementsEn : [''],
       requirementsZh: Array.isArray(experience.requirementsZh) && experience.requirementsZh.length > 0 ? experience.requirementsZh : [''],
       image: null,
       imagePreview: experience.image || '',
@@ -961,6 +987,17 @@ export default function AdminPage() {
     }))
   }, [])
 
+  // 이미지 업로드 핸들러
+  const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setCardForm(prev => ({
+        ...prev,
+        image: file,
+        imagePreview: URL.createObjectURL(file)
+      }))
+    }
+  }, [])
 
   // 이미지 제거 핸들러
   const handleImageRemove = useCallback(() => {
@@ -1233,6 +1270,31 @@ export default function AdminPage() {
     }
   }
 
+  const handleSeedData = async () => {
+    try {
+      const result = await seedExperiences()
+      if (result.success) {
+        console.log('체험단 데이터가 성공적으로 저장되었습니다!')
+      } else {
+        console.log('데이터 저장 중 오류가 발생했습니다.')
+      }
+    } catch {
+      console.log('데이터 저장 중 오류가 발생했습니다.')
+    }
+  }
+
+  const handleResetData = async () => {
+    try {
+      const result = await resetExperiences()
+      if (result.success) {
+        console.log('체험단 데이터가 초기화되었습니다!')
+      } else {
+        console.log('데이터 초기화 중 오류가 발생했습니다.')
+      }
+    } catch {
+      console.log('데이터 초기화 중 오류가 발생했습니다.')
+    }
+  }
 
   // 인스타그램 데이터 로딩
   const loadInstagramData = useCallback(async () => {
@@ -1256,7 +1318,7 @@ export default function AdminPage() {
         console.log('인스타그램 오늘 체험단 로드 완료:', todayResult.experiences?.length || 0)
       }
       
-      if (statsResult.success) {
+      if (statsResult.success && statsResult.stats) {
         setInstagramStats(statsResult.stats)
         console.log('인스타그램 통계 로드 완료:', statsResult.stats)
       }
@@ -1281,11 +1343,11 @@ export default function AdminPage() {
           console.log('인스타그램 신청서 필터링 확인:', {
             experienceId: app.experienceId,
             experienceTitle: app.experienceTitle,
-            collectionSource: (app as { collectionSource?: string }).collectionSource,
-            willInclude: (app as { collectionSource?: string }).collectionSource === 'instagram_experiences'
+            collectionSource: (app as any).collectionSource,
+            willInclude: (app as any).collectionSource === 'instagram_experiences'
           })
           // instagram_experiences 컬렉션에서 온 신청서만 필터링
-          return (app as { collectionSource?: string }).collectionSource === 'instagram_experiences'
+          return (app as any).collectionSource === 'instagram_experiences'
         }) || []
         
         setInstagramApplications(instagramApps)
@@ -1329,27 +1391,27 @@ export default function AdminPage() {
         ) || []
         
         // 고유 사용자 추출
-        const uniqueUsers = new Set(instagramApps.map(app => app.userEmail))
+        const uniqueUsers = new Set(instagramApps.map(app => app.userId))
         const totalUsers = uniqueUsers.size
         
         // 오늘 신청한 사용자
         const today = new Date()
         const todayStr = today.toISOString().split('T')[0]
         const todayApps = instagramApps.filter(app => {
-          const appDate = new Date(app.createdAt.seconds * 1000).toISOString().split('T')[0]
+          const appDate = new Date(app.createdAt).toISOString().split('T')[0]
           return appDate === todayStr
         })
-        const todayUsers = new Set(todayApps.map(app => app.userEmail)).size
+        const todayUsers = new Set(todayApps.map(app => app.userId)).size
         
         // 이번 주 신청한 사용자
         const weekStart = new Date(today)
         weekStart.setDate(today.getDate() - today.getDay())
         const weekStartStr = weekStart.toISOString().split('T')[0]
         const thisWeekApps = instagramApps.filter(app => {
-          const appDate = new Date(app.createdAt.seconds * 1000).toISOString().split('T')[0]
+          const appDate = new Date(app.createdAt).toISOString().split('T')[0]
           return appDate >= weekStartStr
         })
-        const thisWeekUsers = new Set(thisWeekApps.map(app => app.userEmail)).size
+        const thisWeekUsers = new Set(thisWeekApps.map(app => app.userId)).size
         
         const instagramUserStats = {
           totalUsers,
@@ -1492,7 +1554,6 @@ export default function AdminPage() {
       
       // 데이터 새로고침
       loadInstagramApplications()
-      loadInstagramApplicationStats()
       
     } catch (error) {
       console.error('인스타그램 신청 상태 업데이트 오류:', error)
@@ -1515,7 +1576,6 @@ export default function AdminPage() {
       
       // 데이터 새로고침
       loadInstagramApplications()
-      loadInstagramApplicationStats()
       
     } catch (error) {
       console.error('인스타그램 승인 취소 오류:', error)
@@ -1538,7 +1598,6 @@ export default function AdminPage() {
       
       // 데이터 새로고침
       loadInstagramApplications()
-      loadInstagramApplicationStats()
       
     } catch (error) {
       console.error('인스타그램 거부 취소 오류:', error)
@@ -1565,7 +1624,6 @@ export default function AdminPage() {
       
       // 데이터 새로고침
       loadInstagramApplications()
-      loadInstagramApplicationStats()
       
     } catch (error) {
       console.error('인스타그램 신청 삭제 오류:', error)
@@ -1843,10 +1901,12 @@ export default function AdminPage() {
       setInstagramCardForm({
         activityType: '',
         title: '',
+        titleEn: '',
         titleZh: '',
         category: '',
         customCategory: '',
         description: '',
+        descriptionEn: '',
         descriptionZh: '',
         maxParticipants: '',
         experienceDate: '',
@@ -1856,10 +1916,16 @@ export default function AdminPage() {
         recruitmentStartDate: '',
         recruitmentEndDate: '',
         location: '',
+        locationEn: '',
         locationZh: '',
+        tags: [''],
+        tagsEn: [''],
+        tagsZh: [''],
         benefits: [''],
+        benefitsEn: [''],
         benefitsZh: [''],
         requirements: [''],
+        requirementsEn: [''],
         requirementsZh: [''],
         image: null,
         imagePreview: '',
@@ -1889,25 +1955,31 @@ export default function AdminPage() {
       activityType: experience.activityType || '',
       title: experience.title || '',
       titleEn: experience.titleEn || '',
+      titleZh: experience.titleZh || '',
       category: experience.category || '',
       customCategory: '',
       description: experience.description || '',
       descriptionEn: experience.descriptionEn || '',
+      descriptionZh: experience.descriptionZh || '',
       maxParticipants: experience.maxParticipants?.toString() || '',
-      experienceDate: experience.experienceDate || '',
-      experienceTimePeriod: experience.experienceTimePeriod || '',
-      experienceTimeHour: experience.experienceTimeHour || '',
-      experienceTimeMinute: experience.experienceTimeMinute || '',
+      experienceDate: experience.date || '',
+      experienceTimePeriod: '',
+      experienceTimeHour: '',
+      experienceTimeMinute: '',
       recruitmentStartDate: experience.recruitmentStartDate || '',
       recruitmentEndDate: experience.recruitmentEndDate || '',
       location: experience.location || '',
       locationEn: experience.locationEn || '',
+      locationZh: experience.locationZh || '',
       tags: Array.isArray(experience.tags) && experience.tags.length > 0 ? experience.tags : [''],
       tagsEn: Array.isArray(experience.tagsEn) && experience.tagsEn.length > 0 ? experience.tagsEn : [''],
+      tagsZh: Array.isArray(experience.tagsZh) && experience.tagsZh.length > 0 ? experience.tagsZh : [''],
       benefits: Array.isArray(experience.benefits) && experience.benefits.length > 0 ? experience.benefits : [''],
       benefitsEn: Array.isArray(experience.benefitsEn) && experience.benefitsEn.length > 0 ? experience.benefitsEn : [''],
+      benefitsZh: Array.isArray(experience.benefitsZh) && experience.benefitsZh.length > 0 ? experience.benefitsZh : [''],
       requirements: Array.isArray(experience.requirements) && experience.requirements.length > 0 ? experience.requirements : [''],
       requirementsEn: Array.isArray(experience.requirementsEn) && experience.requirementsEn.length > 0 ? experience.requirementsEn : [''],
+      requirementsZh: Array.isArray(experience.requirementsZh) && experience.requirementsZh.length > 0 ? experience.requirementsZh : [''],
       image: null,
       imagePreview: experience.image || '',
       images: [],
@@ -1975,20 +2047,17 @@ export default function AdminPage() {
           const experience = instagramAllExperiences.find(exp => exp.id === app.experienceId)
           return {
             '신청자 이름': app.name || '이름 없음',
-            '신청자 이메일': app.email || '이메일 없음',
-            '신청자 전화번호': app.phone || '전화번호 없음',
             '체험단 제목': experience?.title || '체험단 없음',
             '체험단 카테고리': experience?.category || '카테고리 없음',
             '신청 상태': app.status === 'approved' ? '승인' : 
                         app.status === 'rejected' ? '거절' : '대기중',
-            '신청 일시': app.createdAt ? new Date(app.createdAt.seconds ? app.createdAt.seconds * 1000 : app.createdAt).toLocaleString('ko-KR') : '날짜 없음',
+            '신청 일시': app.createdAt ? new Date(app.createdAt).toLocaleString('ko-KR') : '날짜 없음',
             '방문 예정일': app.visitDate || '날짜 없음',
             '방문 시간': `${app.visitTimePeriod} ${app.visitTimeHour}:${app.visitTimeMinute}` || '시간 없음',
             '방문 인원': `${app.visitCount}명` || '인원 없음',
             '팔로워 수': `${app.followerCount?.toLocaleString()}명` || '0명',
             '위쳇 ID': app.wechatId || 'ID 없음',
-            '인스타그램 ID': app.xiaohongshuId || 'ID 없음',
-            '특이사항': app.notes || '없음'
+            '인스타그램 ID': app.xiaohongshuId || 'ID 없음'
           }
         })
         
@@ -2193,7 +2262,7 @@ export default function AdminPage() {
                       console.error('데이터 확인 오류:', error)
                     }
                   }}
-                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+                  className="bg-green-600 text-white px-4 py-3 sm:px-4 sm:py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 text-sm sm:text-base"
                 >
                   🔍 데이터 확인
                 </button>
@@ -2205,7 +2274,7 @@ export default function AdminPage() {
                     loadUserStats()
                   }}
                   disabled={applicationsLoading}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                  className="bg-blue-600 text-white px-4 py-3 sm:px-4 sm:py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2 text-sm sm:text-base"
                 >
                   <RefreshCw className={`h-4 w-4 ${applicationsLoading ? 'animate-spin' : ''}`} />
                   {applicationsLoading ? '로딩 중...' : '전체 새로고침'}
@@ -2214,8 +2283,8 @@ export default function AdminPage() {
             </div>
             
             {/* 통계 카드 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-6 rounded-xl text-white">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+              <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-4 sm:p-6 rounded-xl text-white">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-blue-100 text-sm font-medium">총 사용자</p>
@@ -2257,8 +2326,8 @@ export default function AdminPage() {
             </div>
 
             {/* 신청 상태별 통계 */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-white rounded-xl shadow-sm p-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
+              <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
                 <div className="flex items-center">
                   <div className="p-3 bg-yellow-100 rounded-lg">
                     <Clock className="h-6 w-6 text-yellow-600" />
@@ -2270,7 +2339,7 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              <div className="bg-white rounded-xl shadow-sm p-6">
+              <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
                 <div className="flex items-center">
                   <div className="p-3 bg-green-100 rounded-lg">
                     <CheckCircle className="h-6 w-6 text-green-600" />
@@ -2282,7 +2351,7 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              <div className="bg-white rounded-xl shadow-sm p-6">
+              <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
                 <div className="flex items-center">
                   <div className="p-3 bg-red-100 rounded-lg">
                     <XCircle className="h-6 w-6 text-red-600" />
@@ -2296,9 +2365,9 @@ export default function AdminPage() {
             </div>
 
             {/* 체험단 정보 */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
               {/* 최근 체험단 목록 */}
-              <div className="bg-white rounded-xl shadow-sm p-6">
+              <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-gray-900">최근 체험단</h3>
                   <span className="text-sm text-gray-500">{recentExperiences.length}개</span>
@@ -2339,7 +2408,7 @@ export default function AdminPage() {
               </div>
 
               {/* 오늘 방문하는 체험단 */}
-              <div className="bg-white rounded-xl shadow-sm p-6">
+              <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-gray-900">오늘 방문</h3>
                   <span className="text-sm text-gray-500">{todayExperiences.length}개</span>
@@ -2435,8 +2504,66 @@ export default function AdminPage() {
                 </div>
                 <div className="divide-y divide-gray-200">
                   {users.map((user) => (
-                    <div key={user.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center justify-between">
+                    <div key={user.id} className="px-4 sm:px-6 py-4 hover:bg-gray-50 transition-colors">
+                      {/* 모바일: 카드 형태, PC: 기존 형태 */}
+                      <div className="block sm:hidden">
+                        <div className="flex items-center space-x-3 mb-3">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
+                            <span className="text-white font-medium text-sm">
+                              {user.displayName?.charAt(0)?.toUpperCase() || 'U'}
+                            </span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-gray-900 truncate">{user.displayName || '이름 없음'}</p>
+                            <p className="text-sm text-gray-500 truncate">{user.email}</p>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-500">
+                              {user.createdAt ? 
+                                (user.createdAt instanceof Date ? 
+                                  user.createdAt.toLocaleDateString('ko-KR') : 
+                                  new Date(user.createdAt).toLocaleDateString('ko-KR')) : 
+                                '날짜 없음'}
+                            </span>
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                              user.role === 'admin' ? 'bg-red-100 text-red-800' :
+                              user.role === 'advertiser' ? 'bg-blue-100 text-blue-800' :
+                              'bg-green-100 text-green-800'
+                            }`}>
+                              {user.role === 'admin' ? '관리자' :
+                               user.role === 'advertiser' ? '광고주' : '일반회원'}
+                            </span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            {/* 역할 수정 */}
+                            <select
+                              value={user.role || 'user'}
+                              onChange={(e) => handleRoleUpdate(user.id, e.target.value as UserRole)}
+                              className="text-sm border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-red-500"
+                            >
+                              <option value="user">일반회원</option>
+                              <option value="advertiser">광고주</option>
+                              <option value="admin">관리자</option>
+                            </select>
+                            
+                            {/* 삭제 버튼 */}
+                            <button
+                              onClick={() => handleUserDelete(user.id, user.displayName || '사용자')}
+                              className="text-red-600 hover:text-red-800 p-1 transition-colors"
+                              title="사용자 삭제"
+                            >
+                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* PC: 기존 형태 */}
+                      <div className="hidden sm:flex items-center justify-between">
                         <div className="flex items-center space-x-4">
                           <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
                             <span className="text-white font-medium text-sm">
@@ -2522,9 +2649,9 @@ export default function AdminPage() {
             </div>
             
             {/* 체험단 현황 통계 */}
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">체험단 현황</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">체험단 현황</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
                 <div className="bg-green-50 p-4 rounded-lg">
                   <div className="flex items-center space-x-2">
                     <Activity className="h-5 w-5 text-green-600" />
@@ -2574,7 +2701,7 @@ export default function AdminPage() {
                       <div key={experience.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
                         <div className="flex items-start justify-between mb-3">
                           <h4 className="font-semibold text-gray-900 line-clamp-1">{experience.title}</h4>
-                          <span className={`px-2 py-1 text-xs rounded-full ${
+                          <span className={`px-2 py-1 text-xs rounded-full whitespace-nowrap ${
                             getStatusByDate(experience) === 'recruiting' 
                               ? 'bg-green-100 text-green-800'
                               : getStatusByDate(experience) === 'ongoing'
@@ -2645,7 +2772,7 @@ export default function AdminPage() {
                       <div key={experience.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
                         <div className="flex items-start justify-between mb-3">
                           <h4 className="font-semibold text-gray-900 line-clamp-1">{experience.title}</h4>
-                          <span className={`px-2 py-1 text-xs rounded-full ${
+                          <span className={`px-2 py-1 text-xs rounded-full whitespace-nowrap ${
                             getStatusByDate(experience) === 'recruiting' 
                               ? 'bg-green-100 text-green-800'
                               : getStatusByDate(experience) === 'ongoing'
@@ -2716,7 +2843,7 @@ export default function AdminPage() {
                       <div key={experience.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
                         <div className="flex items-start justify-between mb-3">
                           <h4 className="font-semibold text-gray-900 line-clamp-1">{experience.title}</h4>
-                          <span className={`px-2 py-1 text-xs rounded-full ${
+                          <span className={`px-2 py-1 text-xs rounded-full whitespace-nowrap ${
                             getStatusByDate(experience) === 'recruiting' 
                               ? 'bg-green-100 text-green-800'
                               : getStatusByDate(experience) === 'ongoing'
@@ -2804,7 +2931,7 @@ export default function AdminPage() {
                       console.error('신청 관리 데이터 확인 오류:', error)
                     }
                   }}
-                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+                  className="bg-green-600 text-white px-4 py-3 sm:px-4 sm:py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 text-sm sm:text-base"
                 >
                   🔍 신청 데이터 확인
                 </button>
@@ -2814,7 +2941,7 @@ export default function AdminPage() {
                     loadApplicationStats()
                   }}
                   disabled={applicationsLoading}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                  className="bg-blue-600 text-white px-4 py-3 sm:px-4 sm:py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2 text-sm sm:text-base"
                 >
                   <RefreshCw className={`h-4 w-4 ${applicationsLoading ? 'animate-spin' : ''}`} />
                   {applicationsLoading ? '로딩 중...' : '데이터 새로고침'}
@@ -3034,10 +3161,10 @@ export default function AdminPage() {
               <p className="text-gray-600">새로운 체험단 신청 카드를 생성하세요</p>
             </div>
             
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">카드 정보 입력</h3>
+            <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">카드 정보 입력</h3>
               <form onSubmit={handleCardSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">활동 유형 *</label>
                     <select 
@@ -3562,10 +3689,12 @@ export default function AdminPage() {
                       setCardForm({
                         activityType: '',
                         title: '',
+                        titleEn: '',
                         titleZh: '',
                         category: '',
                         customCategory: '',
                         description: '',
+                        descriptionEn: '',
                         descriptionZh: '',
                         maxParticipants: '',
                         experienceDate: '',
@@ -3575,10 +3704,16 @@ export default function AdminPage() {
                         recruitmentStartDate: '',
                         recruitmentEndDate: '',
                         location: '',
+                        locationEn: '',
                         locationZh: '',
+                        tags: [''],
+                        tagsEn: [''],
+                        tagsZh: [''],
                         benefits: [''],
+                        benefitsEn: [''],
                         benefitsZh: [''],
                         requirements: [''],
+                        requirementsEn: [''],
                         requirementsZh: [''],
                         image: null,
                         imagePreview: '',
@@ -3612,8 +3747,8 @@ export default function AdminPage() {
               <p className="text-gray-600">기존 체험단 신청 카드를 수정하거나 삭제하세요</p>
             </div>
             
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">카드 목록</h3>
+            <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">카드 목록</h3>
               
               {allExperiences.length === 0 ? (
                 <div className="text-center py-8">
@@ -3627,7 +3762,7 @@ export default function AdminPage() {
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
                             <h4 className="text-lg font-semibold text-gray-900">{experience.title}</h4>
-                            <span className={`px-2 py-1 text-xs rounded-full ${
+                            <span className={`px-2 py-1 text-xs rounded-full whitespace-nowrap ${
                               getStatusByDate(experience) === 'recruiting' ? 'bg-green-100 text-green-800' :
                               getStatusByDate(experience) === 'ongoing' ? 'bg-blue-100 text-blue-800' :
                               'bg-gray-100 text-gray-800'
@@ -3674,14 +3809,14 @@ export default function AdminPage() {
               <p className="text-gray-600">체험단 신청 데이터를 엑셀 파일로 다운로드할 수 있습니다</p>
             </div>
             
-            <div className="bg-white rounded-xl shadow-sm p-6">
+            <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold text-gray-900">신청 데이터 관리</h3>
                 <div className="flex gap-3">
                   <button
                     onClick={loadExcelData}
                     disabled={excelLoading}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                    className="bg-blue-600 text-white px-4 py-3 sm:px-4 sm:py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2 text-sm sm:text-base"
                   >
                     <RefreshCw className={`h-4 w-4 ${excelLoading ? 'animate-spin' : ''}`} />
                     {excelLoading ? '로딩 중...' : '데이터 새로고침'}
@@ -3737,7 +3872,7 @@ export default function AdminPage() {
                                 <div className="text-gray-500 text-xs">{row['체험단 카테고리']}</div>
                               </td>
                               <td className="py-2 px-3">
-                                <span className={`px-2 py-1 text-xs rounded-full ${
+                                <span className={`px-2 py-1 text-xs rounded-full whitespace-nowrap ${
                                   row['신청 상태'] === '승인' ? 'bg-green-100 text-green-800' :
                                   row['신청 상태'] === '거절' ? 'bg-red-100 text-red-800' :
                                   'bg-yellow-100 text-yellow-800'
@@ -3805,7 +3940,7 @@ export default function AdminPage() {
                       console.error('인스타그램 데이터 확인 오류:', error)
                     }
                   }}
-                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+                  className="bg-green-600 text-white px-4 py-3 sm:px-4 sm:py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 text-sm sm:text-base"
                 >
                   🔍 데이터 확인
                 </button>
@@ -3814,7 +3949,7 @@ export default function AdminPage() {
                     loadInstagramData()
                   }}
                   disabled={instagramLoading}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                  className="bg-blue-600 text-white px-4 py-3 sm:px-4 sm:py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2 text-sm sm:text-base"
                 >
                   <RefreshCw className={`h-4 w-4 ${instagramLoading ? 'animate-spin' : ''}`} />
                   {instagramLoading ? '로딩 중...' : '전체 새로고침'}
@@ -3823,8 +3958,8 @@ export default function AdminPage() {
             </div>
             
             {/* 통계 카드 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="bg-gradient-to-r from-pink-500 to-pink-600 p-6 rounded-xl text-white">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+              <div className="bg-gradient-to-r from-pink-500 to-pink-600 p-4 sm:p-6 rounded-xl text-white">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-pink-100 text-sm font-medium">총 사용자</p>
@@ -3867,7 +4002,7 @@ export default function AdminPage() {
 
             {/* 신청 상태별 통계 */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-white rounded-xl shadow-sm p-6">
+              <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
                 <div className="flex items-center">
                   <div className="p-3 bg-yellow-100 rounded-lg">
                     <Clock className="h-6 w-6 text-yellow-600" />
@@ -3879,7 +4014,7 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              <div className="bg-white rounded-xl shadow-sm p-6">
+              <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
                 <div className="flex items-center">
                   <div className="p-3 bg-green-100 rounded-lg">
                     <CheckCircle className="h-6 w-6 text-green-600" />
@@ -3891,7 +4026,7 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              <div className="bg-white rounded-xl shadow-sm p-6">
+              <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
                 <div className="flex items-center">
                   <div className="p-3 bg-red-100 rounded-lg">
                     <XCircle className="h-6 w-6 text-red-600" />
@@ -3905,9 +4040,9 @@ export default function AdminPage() {
             </div>
 
             {/* 체험단 정보 */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
               {/* 최근 인스타그램 체험단 목록 */}
-              <div className="bg-white rounded-xl shadow-sm p-6">
+              <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-gray-900">최근 인스타그램 체험단</h3>
                   <span className="text-sm text-gray-500">{instagramRecentExperiences.length}개</span>
@@ -3948,7 +4083,7 @@ export default function AdminPage() {
               </div>
 
               {/* 오늘 방문하는 인스타그램 체험단 */}
-              <div className="bg-white rounded-xl shadow-sm p-6">
+              <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-gray-900">오늘 방문</h3>
                   <span className="text-sm text-gray-500">{instagramTodayExperiences.length}개</span>
@@ -4004,9 +4139,9 @@ export default function AdminPage() {
             </div>
             
             {/* 인스타그램 체험단 현황 통계 */}
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">인스타그램 체험단 현황</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">인스타그램 체험단 현황</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
                 <div className="bg-green-50 p-4 rounded-lg">
                   <div className="flex items-center space-x-2">
                     <Activity className="h-5 w-5 text-green-600" />
@@ -4056,7 +4191,7 @@ export default function AdminPage() {
                       <div key={experience.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
                         <div className="flex items-start justify-between mb-3">
                           <h4 className="font-semibold text-gray-900 line-clamp-1">{experience.title}</h4>
-                          <span className={`px-2 py-1 text-xs rounded-full ${
+                          <span className={`px-2 py-1 text-xs rounded-full whitespace-nowrap ${
                             getStatusByDate(experience) === 'recruiting' 
                               ? 'bg-green-100 text-green-800'
                               : getStatusByDate(experience) === 'ongoing'
@@ -4127,7 +4262,7 @@ export default function AdminPage() {
                       <div key={experience.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
                         <div className="flex items-start justify-between mb-3">
                           <h4 className="font-semibold text-gray-900 line-clamp-1">{experience.title}</h4>
-                          <span className={`px-2 py-1 text-xs rounded-full ${
+                          <span className={`px-2 py-1 text-xs rounded-full whitespace-nowrap ${
                             getStatusByDate(experience) === 'recruiting' 
                               ? 'bg-green-100 text-green-800'
                               : getStatusByDate(experience) === 'ongoing'
@@ -4198,7 +4333,7 @@ export default function AdminPage() {
                       <div key={experience.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
                         <div className="flex items-start justify-between mb-3">
                           <h4 className="font-semibold text-gray-900 line-clamp-1">{experience.title}</h4>
-                          <span className={`px-2 py-1 text-xs rounded-full ${
+                          <span className={`px-2 py-1 text-xs rounded-full whitespace-nowrap ${
                             getStatusByDate(experience) === 'recruiting' 
                               ? 'bg-green-100 text-green-800'
                               : getStatusByDate(experience) === 'ongoing'
@@ -4286,17 +4421,16 @@ export default function AdminPage() {
                       console.error('인스타그램 신청 관리 데이터 확인 오류:', error)
                     }
                   }}
-                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+                  className="bg-green-600 text-white px-4 py-3 sm:px-4 sm:py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 text-sm sm:text-base"
                 >
                   🔍 신청 데이터 확인
                 </button>
                 <button
                   onClick={() => {
                     loadInstagramApplications()
-                    loadInstagramApplicationStats()
                   }}
                   disabled={applicationsLoading}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                  className="bg-blue-600 text-white px-4 py-3 sm:px-4 sm:py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2 text-sm sm:text-base"
                 >
                   <RefreshCw className={`h-4 w-4 ${applicationsLoading ? 'animate-spin' : ''}`} />
                   {applicationsLoading ? '로딩 중...' : '데이터 새로고침'}
@@ -4516,10 +4650,10 @@ export default function AdminPage() {
               <p className="text-gray-600">새로운 인스타그램 체험단 신청 카드를 생성하세요</p>
             </div>
             
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">카드 정보 입력</h3>
+            <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">카드 정보 입력</h3>
               <form onSubmit={handleInstagramCardSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">활동 유형 *</label>
                     <select 
@@ -5036,10 +5170,12 @@ export default function AdminPage() {
                       setInstagramCardForm({
                         activityType: '',
                         title: '',
+                        titleEn: '',
                         titleZh: '',
                         category: '',
                         customCategory: '',
                         description: '',
+                        descriptionEn: '',
                         descriptionZh: '',
                         maxParticipants: '',
                         experienceDate: '',
@@ -5049,10 +5185,16 @@ export default function AdminPage() {
                         recruitmentStartDate: '',
                         recruitmentEndDate: '',
                         location: '',
+                        locationEn: '',
                         locationZh: '',
+                        tags: [''],
+                        tagsEn: [''],
+                        tagsZh: [''],
                         benefits: [''],
+                        benefitsEn: [''],
                         benefitsZh: [''],
                         requirements: [''],
+                        requirementsEn: [''],
                         requirementsZh: [''],
                         image: null,
                         imagePreview: '',
@@ -5086,8 +5228,8 @@ export default function AdminPage() {
               <p className="text-gray-600">기존 인스타그램 체험단 신청 카드를 수정하거나 삭제하세요</p>
             </div>
             
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">인스타그램 카드 목록</h3>
+            <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">인스타그램 카드 목록</h3>
               
               {instagramAllExperiences.length === 0 ? (
                 <div className="text-center py-8">
@@ -5101,7 +5243,7 @@ export default function AdminPage() {
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
                             <h4 className="text-lg font-semibold text-gray-900">{experience.title}</h4>
-                            <span className={`px-2 py-1 text-xs rounded-full ${
+                            <span className={`px-2 py-1 text-xs rounded-full whitespace-nowrap ${
                               getStatusByDate(experience) === 'recruiting' ? 'bg-green-100 text-green-800' :
                               getStatusByDate(experience) === 'ongoing' ? 'bg-blue-100 text-blue-800' :
                               'bg-gray-100 text-gray-800'
@@ -5148,7 +5290,7 @@ export default function AdminPage() {
               <p className="text-gray-600">인스타그램 체험단 신청 데이터를 엑셀 파일로 다운로드할 수 있습니다</p>
             </div>
             
-            <div className="bg-white rounded-xl shadow-sm p-6">
+            <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold text-gray-900">인스타그램 신청 데이터 관리</h3>
                 <div className="flex gap-3">
@@ -5211,7 +5353,7 @@ export default function AdminPage() {
                                 <div className="text-gray-500 text-xs">{row['체험단 카테고리']}</div>
                               </td>
                               <td className="py-2 px-3">
-                                <span className={`px-2 py-1 text-xs rounded-full ${
+                                <span className={`px-2 py-1 text-xs rounded-full whitespace-nowrap ${
                                   row['신청 상태'] === '승인' ? 'bg-green-100 text-green-800' :
                                   row['신청 상태'] === '거절' ? 'bg-red-100 text-red-800' :
                                   'bg-yellow-100 text-yellow-800'
@@ -5314,7 +5456,7 @@ export default function AdminPage() {
                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                 }`}
               >
-                <Icon className="h-5 w-5" />
+                {Icon && <Icon className="h-5 w-5" />}
                 <span className="font-medium">{item.label}</span>
               </button>
             )
