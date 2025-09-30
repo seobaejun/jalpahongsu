@@ -1,0 +1,108 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - main [ref=e3]:
+    - generic [ref=e6]:
+      - link "好卖的体验团" [ref=e8] [cursor=pointer]:
+        - /url: /
+      - button [ref=e10]:
+        - img [ref=e11]
+    - generic [ref=e15]:
+      - heading "中国体验团" [level=1] [ref=e16]
+      - paragraph [ref=e17]: 在韩中国留学生的专属产品体验平台
+      - paragraph [ref=e18]: 体验最新韩国产品，分享真实感受，获得丰厚奖励。加入我们，开启你的韩国产品体验之旅！
+      - button "立即体验" [ref=e20]
+    - generic [ref=e22]:
+      - generic [ref=e23]:
+        - heading "小洪书体验团" [level=2] [ref=e24]
+        - paragraph [ref=e25]: 精选韩国优质品牌体验机会，等你来参与
+      - generic [ref=e26]:
+        - button "全部" [ref=e27]
+        - button "招募中" [ref=e28]
+        - button "进行中" [ref=e29]
+        - button "已完成" [ref=e30]
+      - generic [ref=e31]:
+        - generic [ref=e32]:
+          - generic [ref=e33]:
+            - img "ㄴㅇㅎㄴ호" [ref=e35]
+            - generic [ref=e37]: 体验团
+            - generic [ref=e39]: 招募中
+          - generic [ref=e40]:
+            - heading "노더ㅗ저" [level=3] [ref=e41]
+            - paragraph [ref=e42]: 오오
+            - generic [ref=e43]:
+              - generic [ref=e45]: 0 / 1招募中
+              - generic [ref=e46]:
+                - text: 还剩
+                - generic [ref=e47]: "9"
+                - text: 天
+            - button "立即报名" [ref=e48]
+        - generic [ref=e49]:
+          - generic [ref=e50]:
+            - img "ㄴㅁㅎㄶ" [ref=e52]
+            - generic [ref=e54]: 体验团
+            - generic [ref=e56]: 招募中
+          - generic [ref=e57]:
+            - heading "ㄴㅇㅎ" [level=3] [ref=e58]
+            - paragraph [ref=e59]: ㄴㅇㅍㄴㅍ
+            - generic [ref=e60]:
+              - generic [ref=e62]: 0 / 2招募中
+              - generic [ref=e63]:
+                - text: 还剩
+                - generic [ref=e64]: "7"
+                - text: 天
+            - button "立即报名" [ref=e65]
+    - generic [ref=e67]:
+      - generic [ref=e68]:
+        - generic [ref=e69]:
+          - heading "好卖的体验团" [level=3] [ref=e70]
+          - paragraph [ref=e71]: 专为在韩中国留学生的产品体验平台，提供最新韩国品牌体验机会，分享真实感受，获得丰厚奖励。
+          - generic [ref=e72]:
+            - link "微信" [ref=e73] [cursor=pointer]:
+              - /url: "#"
+              - generic [ref=e74] [cursor=pointer]: 微信
+              - img [ref=e75] [cursor=pointer]
+            - link "微博" [ref=e77] [cursor=pointer]:
+              - /url: "#"
+              - generic [ref=e78] [cursor=pointer]: 微博
+              - img [ref=e79] [cursor=pointer]
+        - generic [ref=e81]:
+          - heading "快速导航" [level=4] [ref=e82]
+          - list [ref=e83]:
+            - listitem [ref=e84]:
+              - link "小洪书" [ref=e85] [cursor=pointer]:
+                - /url: /
+            - listitem [ref=e86]:
+              - link "体验活动" [ref=e87] [cursor=pointer]:
+                - /url: /experiences
+            - listitem [ref=e88]:
+              - link "体验后记" [ref=e89] [cursor=pointer]:
+                - /url: /reviews
+            - listitem [ref=e90]:
+              - link "关于我们" [ref=e91] [cursor=pointer]:
+                - /url: /about
+        - generic [ref=e92]:
+          - heading "客户支持" [level=4] [ref=e93]
+          - list [ref=e94]:
+            - listitem [ref=e95]:
+              - link "帮助中心" [ref=e96] [cursor=pointer]:
+                - /url: /help
+            - listitem [ref=e97]:
+              - link "联系我们" [ref=e98] [cursor=pointer]:
+                - /url: /contact
+            - listitem [ref=e99]:
+              - link "隐私政策" [ref=e100] [cursor=pointer]:
+                - /url: /privacy
+            - listitem [ref=e101]:
+              - link "服务条款" [ref=e102] [cursor=pointer]:
+                - /url: /terms
+      - generic [ref=e104]:
+        - paragraph [ref=e105]: © 2025 好卖的体验团. All rights reserved.
+        - paragraph [ref=e106]: 专为在韩中国留学生服务
+  - button "Open Next.js Dev Tools" [ref=e112] [cursor=pointer]:
+    - img [ref=e113] [cursor=pointer]
+  - alert [ref=e116]
+  - iframe [ref=e117]:
+    
+```
