@@ -705,7 +705,7 @@ interface LanguageProviderProps {
 }
 
 export function LanguageProvider({ children }: LanguageProviderProps) {
-  const [language, setLanguage] = useState<Language>('zh')
+  const [language, setLanguage] = useState<Language>('ko')
 
   // 로컬 스토리지에서 언어 설정 불러오기
   useEffect(() => {

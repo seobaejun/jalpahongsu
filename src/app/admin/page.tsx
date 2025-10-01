@@ -52,10 +52,8 @@ export default function AdminPage() {
     descriptionEn: '',
     descriptionZh: '',
     maxParticipants: '',
-    experienceDate: '',
-    experienceTimePeriod: '',
-    experienceTimeHour: '',
-    experienceTimeMinute: '',
+    experienceStartDate: '',
+    experienceEndDate: '',
     recruitmentStartDate: '',
     recruitmentEndDate: '',
     location: '',
@@ -114,10 +112,8 @@ export default function AdminPage() {
     descriptionEn: '',
     descriptionZh: '',
     maxParticipants: '',
-    experienceDate: '',
-    experienceTimePeriod: '',
-    experienceTimeHour: '',
-    experienceTimeMinute: '',
+    experienceStartDate: '',
+    experienceEndDate: '',
     recruitmentStartDate: '',
     recruitmentEndDate: '',
     location: '',
@@ -125,7 +121,6 @@ export default function AdminPage() {
     locationZh: '',
     tags: [''],
     tagsEn: [''],
-    tagsZh: [''],
     benefits: [''],
     benefitsEn: [''],
     benefitsZh: [''],
@@ -572,7 +567,7 @@ export default function AdminPage() {
     // 필수 필드 검증
     if (!cardForm.activityType || !cardForm.title || !cardForm.titleZh || !cardForm.category || 
         !cardForm.description || !cardForm.descriptionZh || !cardForm.maxParticipants || 
-        !cardForm.experienceDate || !cardForm.recruitmentStartDate || !cardForm.recruitmentEndDate ||
+        !cardForm.experienceStartDate || !cardForm.experienceEndDate || !cardForm.recruitmentStartDate || !cardForm.recruitmentEndDate ||
         !cardForm.location || !cardForm.locationZh) {
       setCardMessage('모든 필수 필드를 입력해주세요.')
       return
@@ -586,10 +581,6 @@ export default function AdminPage() {
       const { db } = await import('@/lib/firebase')
       const { uploadImage } = await import('@/lib/imageService')
       
-      // 체험 시간 조합
-      const experienceTime = cardForm.experienceTimePeriod && cardForm.experienceTimeHour && cardForm.experienceTimeMinute
-        ? `${cardForm.experienceTimePeriod} ${cardForm.experienceTimeHour}시 ${cardForm.experienceTimeMinute}분`
-        : ''
       
       // 카테고리 결정 (기타인 경우 커스텀 카테고리 사용)
       const finalCategory = cardForm.category === 'other' ? cardForm.customCategory : cardForm.category
@@ -710,8 +701,8 @@ export default function AdminPage() {
         status: 'recruiting',
         recruitmentStartDate: cardForm.recruitmentStartDate,
         recruitmentEndDate: cardForm.recruitmentEndDate,
-        date: cardForm.experienceDate,
-        time: experienceTime,
+        startDate: cardForm.experienceStartDate,
+        endDate: cardForm.experienceEndDate,
         location: cardForm.location,
         locationZh: cardForm.locationZh,
         tags: cardForm.tags.filter(t => t.trim() !== ''),
@@ -756,10 +747,8 @@ export default function AdminPage() {
           descriptionEn: '',
           descriptionZh: '',
           maxParticipants: '',
-          experienceDate: '',
-          experienceTimePeriod: '',
-          experienceTimeHour: '',
-          experienceTimeMinute: '',
+          experienceStartDate: '',
+          experienceEndDate: '',
           recruitmentStartDate: '',
           recruitmentEndDate: '',
           location: '',
@@ -808,10 +797,8 @@ export default function AdminPage() {
       descriptionEn: experience.descriptionEn || '',
       descriptionZh: experience.descriptionZh || '',
       maxParticipants: experience.maxParticipants.toString(),
-      experienceDate: experience.date || '',
-      experienceTimePeriod: '',
-      experienceTimeHour: '',
-      experienceTimeMinute: '',
+      experienceStartDate: experience.startDate ? (experience.startDate instanceof Date ? experience.startDate.toISOString().split('T')[0] : experience.startDate) : '',
+      experienceEndDate: experience.endDate ? (experience.endDate instanceof Date ? experience.endDate.toISOString().split('T')[0] : experience.endDate) : '',
       recruitmentStartDate: experience.recruitmentStartDate || '',
       recruitmentEndDate: experience.recruitmentEndDate || '',
       location: experience.location || '',
@@ -1670,6 +1657,7 @@ export default function AdminPage() {
     setInstagramCardForm({...instagramCardForm, tagsEn: newTags})
   }
 
+
   const addInstagramBenefit = () => {
     setInstagramCardForm({...instagramCardForm, benefits: [...instagramCardForm.benefits, '']})
   }
@@ -1810,7 +1798,7 @@ export default function AdminPage() {
     // 필수 필드 검증
     if (!instagramCardForm.activityType || !instagramCardForm.title || !instagramCardForm.titleEn ||
         !instagramCardForm.category || !instagramCardForm.description || !instagramCardForm.descriptionEn ||
-        !instagramCardForm.maxParticipants || !instagramCardForm.experienceDate || 
+        !instagramCardForm.maxParticipants || !instagramCardForm.experienceStartDate || !instagramCardForm.experienceEndDate || 
         !instagramCardForm.recruitmentStartDate || !instagramCardForm.recruitmentEndDate ||
         !instagramCardForm.location || !instagramCardForm.locationEn) {
       setInstagramCardMessage('모든 필수 필드를 입력해주세요.')
@@ -1861,10 +1849,8 @@ export default function AdminPage() {
         description: instagramCardForm.description,
         descriptionEn: instagramCardForm.descriptionEn,
         maxParticipants: parseInt(instagramCardForm.maxParticipants),
-        experienceDate: instagramCardForm.experienceDate,
-        experienceTimePeriod: instagramCardForm.experienceTimePeriod,
-        experienceTimeHour: instagramCardForm.experienceTimeHour,
-        experienceTimeMinute: instagramCardForm.experienceTimeMinute,
+        startDate: instagramCardForm.experienceStartDate,
+        endDate: instagramCardForm.experienceEndDate,
         recruitmentStartDate: instagramCardForm.recruitmentStartDate,
         recruitmentEndDate: instagramCardForm.recruitmentEndDate,
         location: instagramCardForm.location,
@@ -1909,10 +1895,8 @@ export default function AdminPage() {
         descriptionEn: '',
         descriptionZh: '',
         maxParticipants: '',
-        experienceDate: '',
-        experienceTimePeriod: '',
-        experienceTimeHour: '',
-        experienceTimeMinute: '',
+        experienceStartDate: '',
+        experienceEndDate: '',
         recruitmentStartDate: '',
         recruitmentEndDate: '',
         location: '',
@@ -1920,7 +1904,6 @@ export default function AdminPage() {
         locationZh: '',
         tags: [''],
         tagsEn: [''],
-        tagsZh: [''],
         benefits: [''],
         benefitsEn: [''],
         benefitsZh: [''],
@@ -1962,10 +1945,8 @@ export default function AdminPage() {
       descriptionEn: experience.descriptionEn || '',
       descriptionZh: experience.descriptionZh || '',
       maxParticipants: experience.maxParticipants?.toString() || '',
-      experienceDate: experience.date || '',
-      experienceTimePeriod: '',
-      experienceTimeHour: '',
-      experienceTimeMinute: '',
+      experienceStartDate: experience.startDate ? (experience.startDate instanceof Date ? experience.startDate.toISOString().split('T')[0] : experience.startDate) : '',
+      experienceEndDate: experience.endDate ? (experience.endDate instanceof Date ? experience.endDate.toISOString().split('T')[0] : experience.endDate) : '',
       recruitmentStartDate: experience.recruitmentStartDate || '',
       recruitmentEndDate: experience.recruitmentEndDate || '',
       location: experience.location || '',
@@ -1973,7 +1954,6 @@ export default function AdminPage() {
       locationZh: experience.locationZh || '',
       tags: Array.isArray(experience.tags) && experience.tags.length > 0 ? experience.tags : [''],
       tagsEn: Array.isArray(experience.tagsEn) && experience.tagsEn.length > 0 ? experience.tagsEn : [''],
-      tagsZh: Array.isArray(experience.tagsZh) && experience.tagsZh.length > 0 ? experience.tagsZh : [''],
       benefits: Array.isArray(experience.benefits) && experience.benefits.length > 0 ? experience.benefits : [''],
       benefitsEn: Array.isArray(experience.benefitsEn) && experience.benefitsEn.length > 0 ? experience.benefitsEn : [''],
       benefitsZh: Array.isArray(experience.benefitsZh) && experience.benefitsZh.length > 0 ? experience.benefitsZh : [''],
@@ -3337,62 +3317,25 @@ export default function AdminPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">체험 일정 및 시간 *</label>
-                    <div className="grid grid-cols-1 gap-2">
-                      <input
-                        type="date"
-                        value={cardForm.experienceDate}
-                        onChange={(e) => setCardForm({...cardForm, experienceDate: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                      <div className="grid grid-cols-3 gap-2">
-                        <select 
-                          value={cardForm.experienceTimePeriod}
-                          onChange={(e) => setCardForm({...cardForm, experienceTimePeriod: e.target.value})}
-                          className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        >
-                          <option value="">오전/오후</option>
-                          <option value="AM">오전</option>
-                          <option value="PM">오후</option>
-                        </select>
-                        <select 
-                          value={cardForm.experienceTimeHour}
-                          onChange={(e) => setCardForm({...cardForm, experienceTimeHour: e.target.value})}
-                          className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        >
-                          <option value="">시간</option>
-                          <option value="1">1시</option>
-                          <option value="2">2시</option>
-                          <option value="3">3시</option>
-                          <option value="4">4시</option>
-                          <option value="5">5시</option>
-                          <option value="6">6시</option>
-                          <option value="7">7시</option>
-                          <option value="8">8시</option>
-                          <option value="9">9시</option>
-                          <option value="10">10시</option>
-                          <option value="11">11시</option>
-                          <option value="12">12시</option>
-                        </select>
-                        <select 
-                          value={cardForm.experienceTimeMinute}
-                          onChange={(e) => setCardForm({...cardForm, experienceTimeMinute: e.target.value})}
-                          className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        >
-                          <option value="">분</option>
-                          <option value="00">00분</option>
-                          <option value="05">05분</option>
-                          <option value="10">10분</option>
-                          <option value="15">15분</option>
-                          <option value="20">20분</option>
-                          <option value="25">25분</option>
-                          <option value="30">30분</option>
-                          <option value="35">35분</option>
-                          <option value="40">40분</option>
-                          <option value="45">45분</option>
-                          <option value="50">50분</option>
-                          <option value="55">55분</option>
-                        </select>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">체험 기간 *</label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">시작일</label>
+                        <input
+                          type="date"
+                          value={cardForm.experienceStartDate}
+                          onChange={(e) => setCardForm({...cardForm, experienceStartDate: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">종료일</label>
+                        <input
+                          type="date"
+                          value={cardForm.experienceEndDate}
+                          onChange={(e) => setCardForm({...cardForm, experienceEndDate: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
                       </div>
                     </div>
                   </div>
@@ -3697,10 +3640,8 @@ export default function AdminPage() {
                         descriptionEn: '',
                         descriptionZh: '',
                         maxParticipants: '',
-                        experienceDate: '',
-                        experienceTimePeriod: '',
-                        experienceTimeHour: '',
-                        experienceTimeMinute: '',
+                        experienceStartDate: '',
+                        experienceEndDate: '',
                         recruitmentStartDate: '',
                         recruitmentEndDate: '',
                         location: '',
@@ -4826,54 +4767,25 @@ export default function AdminPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">체험 일정 및 시간 *</label>
-                    <div className="grid grid-cols-1 gap-2">
-                      <input
-                        type="date"
-                        value={instagramCardForm.experienceDate}
-                        onChange={(e) => setInstagramCardForm({...instagramCardForm, experienceDate: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                      />
-                      <div className="grid grid-cols-3 gap-2">
-                        <select 
-                          value={instagramCardForm.experienceTimePeriod}
-                          onChange={(e) => setInstagramCardForm({...instagramCardForm, experienceTimePeriod: e.target.value})}
-                          className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                        >
-                          <option value="">오전/오후</option>
-                          <option value="AM">오전</option>
-                          <option value="PM">오후</option>
-                        </select>
-                        <select 
-                          value={instagramCardForm.experienceTimeHour}
-                          onChange={(e) => setInstagramCardForm({...instagramCardForm, experienceTimeHour: e.target.value})}
-                          className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                        >
-                          <option value="">시간</option>
-                          <option value="1">1시</option>
-                          <option value="2">2시</option>
-                          <option value="3">3시</option>
-                          <option value="4">4시</option>
-                          <option value="5">5시</option>
-                          <option value="6">6시</option>
-                          <option value="7">7시</option>
-                          <option value="8">8시</option>
-                          <option value="9">9시</option>
-                          <option value="10">10시</option>
-                          <option value="11">11시</option>
-                          <option value="12">12시</option>
-                        </select>
-                        <select 
-                          value={instagramCardForm.experienceTimeMinute}
-                          onChange={(e) => setInstagramCardForm({...instagramCardForm, experienceTimeMinute: e.target.value})}
-                          className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                        >
-                          <option value="">분</option>
-                          <option value="00">00분</option>
-                          <option value="15">15분</option>
-                          <option value="30">30분</option>
-                          <option value="45">45분</option>
-                        </select>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">체험 기간 *</label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">시작일</label>
+                        <input
+                          type="date"
+                          value={instagramCardForm.experienceStartDate}
+                          onChange={(e) => setInstagramCardForm({...instagramCardForm, experienceStartDate: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">종료일</label>
+                        <input
+                          type="date"
+                          value={instagramCardForm.experienceEndDate}
+                          onChange={(e) => setInstagramCardForm({...instagramCardForm, experienceEndDate: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                        />
                       </div>
                     </div>
                   </div>
@@ -5178,10 +5090,8 @@ export default function AdminPage() {
                         descriptionEn: '',
                         descriptionZh: '',
                         maxParticipants: '',
-                        experienceDate: '',
-                        experienceTimePeriod: '',
-                        experienceTimeHour: '',
-                        experienceTimeMinute: '',
+                        experienceStartDate: '',
+                        experienceEndDate: '',
                         recruitmentStartDate: '',
                         recruitmentEndDate: '',
                         location: '',
@@ -5189,7 +5099,6 @@ export default function AdminPage() {
                         locationZh: '',
                         tags: [''],
                         tagsEn: [''],
-                        tagsZh: [''],
                         benefits: [''],
                         benefitsEn: [''],
                         benefitsZh: [''],

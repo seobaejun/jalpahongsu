@@ -244,9 +244,9 @@ export default function ExperienceCard({ experience, isInstagram = false }: Expe
     // 모집 마감 후 (체험 일정 전)
     else if (today > endDate) {
       // 체험 일정이 있다면 체험 일정 기준으로 판단
-      if (experience.date) {
-        const experienceDate = new Date(experience.date)
-        if (today < experienceDate) {
+      if (experience.startDate) {
+        const experienceStartDate = new Date(experience.startDate)
+        if (today < experienceStartDate) {
           return 'ongoing' // 모집 마감, 체험 전
         } else {
           return 'completed' // 체험 완료
@@ -446,6 +446,45 @@ export default function ExperienceCard({ experience, isInstagram = false }: Expe
             return experience.description
           })()}
         </p>
+
+        {/* 태그 표시 */}
+        {(() => {
+          let displayTags: string[] = []
+          
+          if (isInstagram) {
+            // 인스타그램: 한국어 + 영어
+            if (currentLanguage === 'en') {
+              displayTags = experience.tagsEn || experience.tags || []
+            } else {
+              displayTags = experience.tags || []
+            }
+          } else {
+            // 샤오홍슈: 한국어 + 중국어
+            if (currentLanguage === 'zh') {
+              displayTags = experience.tagsZh || experience.tags || []
+            } else {
+              displayTags = experience.tags || []
+            }
+          }
+          
+          return displayTags.length > 0 ? (
+            <div className="flex flex-wrap gap-1 mb-4">
+              {displayTags.slice(0, 3).map((tag, index) => (
+                <span
+                  key={index}
+                  className="inline-block bg-gray-100 text-gray-700 px-2 py-1 rounded-full text-xs"
+                >
+                  #{tag}
+                </span>
+              ))}
+              {displayTags.length > 3 && (
+                <span className="inline-block bg-gray-100 text-gray-500 px-2 py-1 rounded-full text-xs">
+                  +{displayTags.length - 3}
+                </span>
+              )}
+            </div>
+          ) : null
+        })()}
 
         {/* 참여 정보 */}
         <div className="mb-4">

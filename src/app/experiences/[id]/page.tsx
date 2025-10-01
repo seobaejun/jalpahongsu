@@ -459,22 +459,26 @@ export default function ExperienceDetailPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex items-center space-x-3">
                   <Calendar className="h-5 w-5 text-red-600" />
-                  <span className="text-gray-600">日期: {experience.date}</span>
+                  <span className="text-gray-600">
+                    {currentLanguage === 'zh' ? '开始日期' : '시작일'}: {experience.startDate ? (experience.startDate instanceof Date ? experience.startDate.toISOString().split('T')[0] : experience.startDate) : '-'}
+                  </span>
                 </div>
                 <div className="flex items-center space-x-3">
-                  <Clock className="h-5 w-5 text-red-600" />
-                  <span className="text-gray-600">时间: {experience.time}</span>
+                  <Calendar className="h-5 w-5 text-red-600" />
+                  <span className="text-gray-600">
+                    {currentLanguage === 'zh' ? '结束日期' : '종료일'}: {experience.endDate ? (experience.endDate instanceof Date ? experience.endDate.toISOString().split('T')[0] : experience.endDate) : '-'}
+                  </span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <MapPin className="h-5 w-5 text-red-600" />
                   <span className="text-gray-600">
-                    地点: {displayLocation}
+                    {currentLanguage === 'zh' ? '地点' : '장소'}: {displayLocation}
                   </span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <Users className="h-5 w-5 text-red-600" />
                   <span className="text-gray-600">
-                    参与者: {applicationCount}/{experience.maxParticipants}人
+                    {currentLanguage === 'zh' ? '参与者' : '참여자'}: {applicationCount}/{experience.maxParticipants}{currentLanguage === 'zh' ? '人' : '명'}
                   </span>
                 </div>
               </div>
@@ -487,7 +491,7 @@ export default function ExperienceDetailPage() {
                   <svg className="h-6 w-6 text-purple-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
                   </svg>
-                  标签
+                  {currentLanguage === 'zh' ? '标签' : '태그'}
                 </h2>
                 <div className="flex flex-wrap gap-2">
                   <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium border border-purple-200">
@@ -495,15 +499,25 @@ export default function ExperienceDetailPage() {
                   </span>
                   {experience.activityType && (
                     <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium border border-blue-200">
-                      {experience.activityType === 'experience' ? '체험단' : '기자단'}
+                      {experience.activityType === 'experience' ? (currentLanguage === 'zh' ? '体验团' : '체험단') : (currentLanguage === 'zh' ? '记者团' : '기자단')}
                     </span>
                   )}
-                  {/* 사용자 정의 태그들 */}
-                  {experience.tags && experience.tags.length > 0 && experience.tags.map((tag, index) => (
-                    <span key={index} className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium border border-green-200">
-                      {tag}
-                    </span>
-                  ))}
+                  {/* 언어별 사용자 정의 태그들 */}
+                  {(() => {
+                    let displayTags: string[] = []
+                    
+                    if (currentLanguage === 'zh') {
+                      displayTags = experience.tagsZh || experience.tags || []
+                    } else {
+                      displayTags = experience.tags || []
+                    }
+                    
+                    return displayTags.length > 0 ? displayTags.map((tag, index) => (
+                      <span key={index} className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium border border-green-200">
+                        {tag}
+                      </span>
+                    )) : null
+                  })()}
                 </div>
               </div>
             )}
@@ -512,7 +526,7 @@ export default function ExperienceDetailPage() {
             <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-100 hover:border-yellow-200 hover:shadow-lg transition-all duration-300 hover:ring-2 hover:ring-yellow-100">
               <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
                 <Star className="h-6 w-6 text-yellow-500 mr-2" />
-                体验福利
+                {currentLanguage === 'zh' ? '体验福利' : '체험 혜택'}
               </h2>
               <ul className="space-y-2">
                 {displayBenefits && displayBenefits.length > 0 ? (
@@ -523,14 +537,14 @@ export default function ExperienceDetailPage() {
                     </li>
                   ))
                 ) : (
-                  <li className="text-gray-500">暂无福利信息</li>
+                  <li className="text-gray-500">{currentLanguage === 'zh' ? '暂无福利信息' : '혜택 정보가 없습니다'}</li>
                 )}
               </ul>
             </div>
 
             {/* {t('detail.requirements')} */}
             <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:border-blue-200 hover:shadow-lg transition-all duration-300 hover:ring-2 hover:ring-blue-100">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">参与条件</h2>
+              <h2 className="text-xl font-bold text-gray-900 mb-4">{currentLanguage === 'zh' ? '参与条件' : '참여 조건'}</h2>
               <ul className="space-y-2">
                 {displayRequirements && displayRequirements.length > 0 ? (
                   displayRequirements.map((requirement, index) => (
@@ -540,7 +554,7 @@ export default function ExperienceDetailPage() {
                     </li>
                   ))
                 ) : (
-                  <li className="text-gray-500">暂无参与条件信息</li>
+                  <li className="text-gray-500">{currentLanguage === 'zh' ? '暂无参与条件信息' : '참여 조건 정보가 없습니다'}</li>
                 )}
               </ul>
             </div>
@@ -551,7 +565,7 @@ export default function ExperienceDetailPage() {
                 <svg className="h-6 w-6 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                体验申请
+                {currentLanguage === 'zh' ? '体验申请' : '체험단 신청'}
               </h2>
               
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -565,7 +579,7 @@ export default function ExperienceDetailPage() {
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    姓名 *
+                    {currentLanguage === 'zh' ? '姓名' : '이름'} *
                   </label>
                   <input
                     type="text"
@@ -574,29 +588,28 @@ export default function ExperienceDetailPage() {
                     onChange={handleInputChange}
                     required
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder="请输入您的姓名"
+                    placeholder={currentLanguage === 'zh' ? '请输入您的姓名' : '이름을 입력해주세요'}
                   />
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    护照号码 *
+                    {currentLanguage === 'zh' ? '护照号码' : '여권번호'}
                   </label>
                   <input
                     type="text"
                     name="passportNumber"
                     value={formData.passportNumber}
                     onChange={handleInputChange}
-                    required
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder="请输入您的护照号码"
+                    placeholder={currentLanguage === 'zh' ? '请输入您的护照号码（可选）' : '여권번호를 입력해주세요 (선택사항)'}
                   />
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      访问日期 *
+                      {currentLanguage === 'zh' ? '访问日期' : '방문 날짜'} *
                     </label>
                     <div className="relative">
                       <input
@@ -620,7 +633,7 @@ export default function ExperienceDetailPage() {
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      访问时间 *
+                      {currentLanguage === 'zh' ? '访问时间' : '방문 시간'} *
                     </label>
                     <div className="grid grid-cols-3 gap-2">
                       <select
@@ -630,9 +643,9 @@ export default function ExperienceDetailPage() {
                         required
                         className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                       >
-                        <option value="">选择时段</option>
-                        <option value="AM">上午</option>
-                        <option value="PM">下午</option>
+                        <option value="">{currentLanguage === 'zh' ? '选择时段' : '시간대 선택'}</option>
+                        <option value="AM">{currentLanguage === 'zh' ? '上午' : '오전'}</option>
+                        <option value="PM">{currentLanguage === 'zh' ? '下午' : '오후'}</option>
                       </select>
                       
                       <select
@@ -642,19 +655,19 @@ export default function ExperienceDetailPage() {
                         required
                         className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                       >
-                        <option value="">选择小时</option>
-                        <option value="1">1时</option>
-                        <option value="2">2时</option>
-                        <option value="3">3时</option>
-                        <option value="4">4时</option>
-                        <option value="5">5时</option>
-                        <option value="6">6时</option>
-                        <option value="7">7时</option>
-                        <option value="8">8时</option>
-                        <option value="9">9时</option>
-                        <option value="10">10时</option>
-                        <option value="11">11时</option>
-                        <option value="12">12时</option>
+                        <option value="">{currentLanguage === 'zh' ? '选择小时' : '시간 선택'}</option>
+                        <option value="1">{currentLanguage === 'zh' ? '1时' : '1시'}</option>
+                        <option value="2">{currentLanguage === 'zh' ? '2时' : '2시'}</option>
+                        <option value="3">{currentLanguage === 'zh' ? '3时' : '3시'}</option>
+                        <option value="4">{currentLanguage === 'zh' ? '4时' : '4시'}</option>
+                        <option value="5">{currentLanguage === 'zh' ? '5时' : '5시'}</option>
+                        <option value="6">{currentLanguage === 'zh' ? '6时' : '6시'}</option>
+                        <option value="7">{currentLanguage === 'zh' ? '7时' : '7시'}</option>
+                        <option value="8">{currentLanguage === 'zh' ? '8时' : '8시'}</option>
+                        <option value="9">{currentLanguage === 'zh' ? '9时' : '9시'}</option>
+                        <option value="10">{currentLanguage === 'zh' ? '10时' : '10시'}</option>
+                        <option value="11">{currentLanguage === 'zh' ? '11时' : '11시'}</option>
+                        <option value="12">{currentLanguage === 'zh' ? '12时' : '12시'}</option>
                       </select>
                       
                       <select
@@ -664,19 +677,19 @@ export default function ExperienceDetailPage() {
                         required
                         className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                       >
-                        <option value="">选择分钟</option>
-                        <option value="00">00分</option>
-                        <option value="05">05分</option>
-                        <option value="10">10分</option>
-                        <option value="15">15分</option>
-                        <option value="20">20分</option>
-                        <option value="25">25分</option>
-                        <option value="30">30分</option>
-                        <option value="35">35分</option>
-                        <option value="40">40分</option>
-                        <option value="45">45分</option>
-                        <option value="50">50分</option>
-                        <option value="55">55分</option>
+                        <option value="">{currentLanguage === 'zh' ? '选择分钟' : '분 선택'}</option>
+                        <option value="00">{currentLanguage === 'zh' ? '00分' : '00분'}</option>
+                        <option value="05">{currentLanguage === 'zh' ? '05分' : '05분'}</option>
+                        <option value="10">{currentLanguage === 'zh' ? '10分' : '10분'}</option>
+                        <option value="15">{currentLanguage === 'zh' ? '15分' : '15분'}</option>
+                        <option value="20">{currentLanguage === 'zh' ? '20分' : '20분'}</option>
+                        <option value="25">{currentLanguage === 'zh' ? '25分' : '25분'}</option>
+                        <option value="30">{currentLanguage === 'zh' ? '30分' : '30분'}</option>
+                        <option value="35">{currentLanguage === 'zh' ? '35分' : '35분'}</option>
+                        <option value="40">{currentLanguage === 'zh' ? '40分' : '40분'}</option>
+                        <option value="45">{currentLanguage === 'zh' ? '45分' : '45분'}</option>
+                        <option value="50">{currentLanguage === 'zh' ? '50分' : '50분'}</option>
+                        <option value="55">{currentLanguage === 'zh' ? '55分' : '55분'}</option>
                       </select>
                     </div>
                   </div>
@@ -684,7 +697,7 @@ export default function ExperienceDetailPage() {
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    访问人数 *
+                    {currentLanguage === 'zh' ? '访问人数' : '방문 인원'} *
                   </label>
                   <select
                     name="visitCount"
@@ -693,18 +706,18 @@ export default function ExperienceDetailPage() {
                     required
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                   >
-                    <option value="">选择人数</option>
-                    <option value="1">1人</option>
-                    <option value="2">2人</option>
-                    <option value="3">3人</option>
-                    <option value="4">4人</option>
-                    <option value="5">5人以上</option>
+                    <option value="">{currentLanguage === 'zh' ? '选择人数' : '인원 선택'}</option>
+                    <option value="1">{currentLanguage === 'zh' ? '1人' : '1명'}</option>
+                    <option value="2">{currentLanguage === 'zh' ? '2人' : '2명'}</option>
+                    <option value="3">{currentLanguage === 'zh' ? '3人' : '3명'}</option>
+                    <option value="4">{currentLanguage === 'zh' ? '4人' : '4명'}</option>
+                    <option value="5">{currentLanguage === 'zh' ? '5人以上' : '5명 이상'}</option>
                   </select>
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    微信ID *
+                    {currentLanguage === 'zh' ? '微信ID' : '위쳇 ID'} *
                   </label>
                   <input
                     type="text"
@@ -713,13 +726,13 @@ export default function ExperienceDetailPage() {
                     onChange={handleInputChange}
                     required
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder="请输入您的微信ID"
+                    placeholder={currentLanguage === 'zh' ? '请输入您的微信ID' : '위쳇 ID를 입력해주세요'}
                   />
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    小红书ID *
+                    {currentLanguage === 'zh' ? '小红书ID' : '샤오홍슈 ID'} *
                   </label>
                   <input
                     type="text"
@@ -728,13 +741,13 @@ export default function ExperienceDetailPage() {
                     onChange={handleInputChange}
                     required
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder="请输入您的小红书ID"
+                    placeholder={currentLanguage === 'zh' ? '请输入您的小红书ID' : '샤오홍슈 ID를 입력해주세요'}
                   />
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    粉丝数量 *
+                    {currentLanguage === 'zh' ? '粉丝数量' : '팔로워 수'} *
                   </label>
                   <input
                     type="number"
@@ -744,7 +757,7 @@ export default function ExperienceDetailPage() {
                     required
                     min="0"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder="请输入您的粉丝数量"
+                    placeholder={currentLanguage === 'zh' ? '请输入您的粉丝数量' : '팔로워 수를 입력해주세요'}
                   />
                 </div>
                 
@@ -769,7 +782,12 @@ export default function ExperienceDetailPage() {
                       : 'bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600 disabled:opacity-50'
                   }`}
                 >
-                  {applying ? '申请中...' : applied ? '申请完成' : '立即申请'}
+                  {applying 
+                    ? (currentLanguage === 'zh' ? '申请中...' : '신청 중...') 
+                    : applied 
+                      ? (currentLanguage === 'zh' ? '申请完成' : '신청 완료') 
+                      : (currentLanguage === 'zh' ? '立即申请' : '지금 신청하기')
+                  }
                 </button>
               </form>
             </div>
@@ -780,16 +798,26 @@ export default function ExperienceDetailPage() {
             <div className="sticky top-8">
               {/* {t('detail.applicationCard')} */}
               <div className="bg-gradient-to-br from-pink-50 to-rose-50 rounded-xl shadow-sm p-6 mb-6 border border-pink-100">
-                <h3 className="text-lg font-bold text-gray-900 mb-4">申请信息</h3>
+                <h3 className="text-lg font-bold text-gray-900 mb-4">
+                  {currentLanguage === 'zh' ? '申请信息' : '신청 정보'}
+                </h3>
                 
                 <div className="space-y-4 mb-6">
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-600">参与者</span>
-                    <span className="font-medium">{applicationCount}/{experience.maxParticipants}人</span>
+                    <span className="text-gray-600">
+                      {currentLanguage === 'zh' ? '参与者' : '참여자'}
+                    </span>
+                    <span className="font-medium">
+                      {applicationCount}/{experience.maxParticipants}{currentLanguage === 'zh' ? '人' : '명'}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-600">剩余天数</span>
-                    <span className="font-medium text-red-600">{experience.daysLeft}天</span>
+                    <span className="text-gray-600">
+                      {currentLanguage === 'zh' ? '剩余天数' : '남은 일수'}
+                    </span>
+                    <span className="font-medium text-red-600">
+                      {experience.daysLeft}{currentLanguage === 'zh' ? '天' : '일'}
+                    </span>
                   </div>
                 </div>
 
@@ -803,7 +831,12 @@ export default function ExperienceDetailPage() {
                         : 'bg-gradient-to-r from-pink-400 to-rose-400 text-white hover:from-pink-500 hover:to-rose-500 disabled:opacity-50 shadow-md hover:shadow-lg'
                     }`}
                   >
-                    {applying ? t('detail.applying') : applied ? t('detail.applied') : t('detail.applyButton')}
+                    {applying 
+                      ? (currentLanguage === 'zh' ? '申请中...' : '신청 중...') 
+                      : applied 
+                        ? (currentLanguage === 'zh' ? '申请完成' : '신청 완료') 
+                        : (currentLanguage === 'zh' ? '立即申请' : '체험단 신청하기')
+                    }
                   </button>
                 ) : (
                   <div className={`text-center py-3 px-4 rounded-lg font-medium ${
@@ -817,7 +850,7 @@ export default function ExperienceDetailPage() {
 
                 <div className="mt-4 pt-4 border-t border-pink-200">
                   <p className="text-sm text-gray-500 text-center">
-                    {t('detail.contact')}: jalpalja0001@gmail.com
+                    {currentLanguage === 'zh' ? '문의' : '문의'}: jalpalja0001@gmail.com
                   </p>
                 </div>
               </div>

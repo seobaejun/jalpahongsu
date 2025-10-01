@@ -209,7 +209,15 @@ export default function MyPage() {
           console.log('createdAt 원본 데이터:', app.createdAt, typeof app.createdAt)
           
           if (app.createdAt) {
-            createdAt = app.createdAt instanceof Date ? app.createdAt : new Date(app.createdAt)
+            if (app.createdAt instanceof Date) {
+              createdAt = app.createdAt
+            } else if (app.createdAt && typeof app.createdAt === 'object' && 'toDate' in app.createdAt) {
+              // Firestore Timestamp인 경우
+              createdAt = (app.createdAt as any).toDate()
+            } else {
+              // 문자열이나 숫자인 경우
+              createdAt = new Date(app.createdAt)
+            }
             console.log('Date로 변환:', createdAt)
           }
           
@@ -312,7 +320,15 @@ export default function MyPage() {
           console.log('인스타그램 createdAt 원본 데이터:', app.createdAt, typeof app.createdAt)
           
           if (app.createdAt) {
-            createdAt = app.createdAt instanceof Date ? app.createdAt : new Date(app.createdAt)
+            if (app.createdAt instanceof Date) {
+              createdAt = app.createdAt
+            } else if (app.createdAt && typeof app.createdAt === 'object' && 'toDate' in app.createdAt) {
+              // Firestore Timestamp인 경우
+              createdAt = (app.createdAt as any).toDate()
+            } else {
+              // 문자열이나 숫자인 경우
+              createdAt = new Date(app.createdAt)
+            }
             console.log('인스타그램 Date로 변환:', createdAt)
           }
           
