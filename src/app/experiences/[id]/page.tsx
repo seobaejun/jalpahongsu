@@ -484,43 +484,57 @@ export default function ExperienceDetailPage() {
               </div>
             </div>
 
-            {/* 태그 섹션 */}
-            {experience.category && (
-              <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-100 hover:border-purple-200 hover:shadow-lg transition-all duration-300 hover:ring-2 hover:ring-purple-100">
-                <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
-                  <svg className="h-6 w-6 text-purple-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                  </svg>
-                  {currentLanguage === 'zh' ? '标签' : '태그'}
-                </h2>
-                <div className="flex flex-wrap gap-2">
-                  <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium border border-purple-200">
-                    {experience.category}
-                  </span>
-                  {experience.activityType && (
-                    <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium border border-blue-200">
-                      {experience.activityType === 'experience' ? (currentLanguage === 'zh' ? '体验团' : '체험단') : (currentLanguage === 'zh' ? '记者团' : '기자단')}
-                    </span>
-                  )}
-                  {/* 언어별 사용자 정의 태그들 */}
-                  {(() => {
-                    let displayTags: string[] = []
+            {/* 태그 섹션 - 카테고리나 태그가 있으면 표시 */}
+            {(() => {
+              // 표시할 태그가 있는지 확인
+              let displayTags: string[] = []
+              
+              if (currentLanguage === 'zh') {
+                displayTags = experience.tagsZh || experience.tags || []
+              } else if (currentLanguage === 'en') {
+                displayTags = experience.tagsEn || experience.tags || []
+              } else {
+                // 한국어 - 한국어 태그만 사용
+                displayTags = experience.tags || []
+              }
+              
+              
+              // 카테고리나 활동 타입이 있으면 항상 표시
+              const hasContent = experience.category || experience.activityType || displayTags.length > 0
+              
+              return hasContent ? (
+                <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-100 hover:border-purple-200 hover:shadow-lg transition-all duration-300 hover:ring-2 hover:ring-purple-100">
+                  <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                    <svg className="h-6 w-6 text-purple-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                    </svg>
+                    {currentLanguage === 'zh' ? '标签' : '태그'}
+                  </h2>
+                  <div className="flex flex-wrap gap-2">
+                    {/* 카테고리 표시 */}
+                    {experience.category && (
+                      <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium border border-purple-200">
+                        {experience.category}
+                      </span>
+                    )}
                     
-                    if (currentLanguage === 'zh') {
-                      displayTags = experience.tagsZh || experience.tags || []
-                    } else {
-                      displayTags = experience.tags || []
-                    }
+                    {/* 활동 타입 표시 */}
+                    {experience.activityType && (
+                      <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium border border-blue-200">
+                        {experience.activityType === 'experience' ? (currentLanguage === 'zh' ? '体验团' : '체험단') : (currentLanguage === 'zh' ? '记者团' : '기자단')}
+                      </span>
+                    )}
                     
-                    return displayTags.length > 0 ? displayTags.map((tag, index) => (
+                    {/* 사용자 정의 태그들 */}
+                    {displayTags.map((tag, index) => (
                       <span key={index} className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium border border-green-200">
                         {tag}
                       </span>
-                    )) : null
-                  })()}
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              ) : null
+            })()}
 
             {/* {t('detail.benefits')} */}
             <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-100 hover:border-yellow-200 hover:shadow-lg transition-all duration-300 hover:ring-2 hover:ring-yellow-100">

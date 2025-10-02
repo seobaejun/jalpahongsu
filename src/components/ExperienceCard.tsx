@@ -447,8 +447,8 @@ export default function ExperienceCard({ experience, isInstagram = false }: Expe
           })()}
         </p>
 
-        {/* 태그 표시 */}
-        {(() => {
+        {/* 태그 표시 - 메인카드에서는 숨김 */}
+        {false && (() => {
           let displayTags: string[] = []
           
           if (isInstagram) {
