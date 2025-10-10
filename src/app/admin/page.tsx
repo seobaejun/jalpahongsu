@@ -99,6 +99,7 @@ export default function AdminPage() {
   // 인스타그램 신청 관리 관련 상태
   const [instagramApplications, setInstagramApplications] = useState<Application[]>([])
   const [instagramApplicationMessage, setInstagramApplicationMessage] = useState('')
+  const [instagramApplicationFilter, setInstagramApplicationFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all')
   
   // 인스타그램 카드 만들기 관련 상태
   const [instagramCardForm, setInstagramCardForm] = useState({
@@ -147,6 +148,7 @@ export default function AdminPage() {
   const [applicationStats, setApplicationStats] = useState({ total: 0, pending: 0, approved: 0, rejected: 0 })
   const [applicationsLoading, setApplicationsLoading] = useState(false)
   const [applicationMessage, setApplicationMessage] = useState('')
+  const [applicationFilter, setApplicationFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all')
   const [allExperiences, setAllExperiences] = useState<Experience[]>([])
   const [experiencesLoading, setExperiencesLoading] = useState(false)
   
@@ -2932,7 +2934,12 @@ export default function AdminPage() {
 
             {/* 신청 통계 */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-6 rounded-xl text-white">
+              <button 
+                onClick={() => setApplicationFilter('all')}
+                className={`bg-gradient-to-r from-blue-500 to-blue-600 p-6 rounded-xl text-white transition-all duration-200 hover:scale-105 hover:shadow-lg ${
+                  applicationFilter === 'all' ? 'ring-4 ring-blue-300 shadow-xl' : ''
+                }`}
+              >
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-blue-100 text-sm font-medium">총 신청</p>
@@ -2940,9 +2947,14 @@ export default function AdminPage() {
                   </div>
                   <FileText className="h-8 w-8 text-blue-200" />
                 </div>
-              </div>
+              </button>
               
-              <div className="bg-gradient-to-r from-yellow-500 to-yellow-600 p-6 rounded-xl text-white">
+              <button 
+                onClick={() => setApplicationFilter('pending')}
+                className={`bg-gradient-to-r from-yellow-500 to-yellow-600 p-6 rounded-xl text-white transition-all duration-200 hover:scale-105 hover:shadow-lg ${
+                  applicationFilter === 'pending' ? 'ring-4 ring-yellow-300 shadow-xl' : ''
+                }`}
+              >
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-yellow-100 text-sm font-medium">대기중</p>
@@ -2950,9 +2962,14 @@ export default function AdminPage() {
                   </div>
                   <Clock className="h-8 w-8 text-yellow-200" />
                 </div>
-              </div>
+              </button>
               
-              <div className="bg-gradient-to-r from-green-500 to-green-600 p-6 rounded-xl text-white">
+              <button 
+                onClick={() => setApplicationFilter('approved')}
+                className={`bg-gradient-to-r from-green-500 to-green-600 p-6 rounded-xl text-white transition-all duration-200 hover:scale-105 hover:shadow-lg ${
+                  applicationFilter === 'approved' ? 'ring-4 ring-green-300 shadow-xl' : ''
+                }`}
+              >
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-green-100 text-sm font-medium">승인됨</p>
@@ -2960,9 +2977,14 @@ export default function AdminPage() {
                   </div>
                   <CheckCircle className="h-8 w-8 text-green-200" />
                 </div>
-              </div>
+              </button>
               
-              <div className="bg-gradient-to-r from-red-500 to-red-600 p-6 rounded-xl text-white">
+              <button 
+                onClick={() => setApplicationFilter('rejected')}
+                className={`bg-gradient-to-r from-red-500 to-red-600 p-6 rounded-xl text-white transition-all duration-200 hover:scale-105 hover:shadow-lg ${
+                  applicationFilter === 'rejected' ? 'ring-4 ring-red-300 shadow-xl' : ''
+                }`}
+              >
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-red-100 text-sm font-medium">거부됨</p>
@@ -2970,7 +2992,7 @@ export default function AdminPage() {
                   </div>
                   <XCircle className="h-8 w-8 text-red-200" />
                 </div>
-              </div>
+              </button>
             </div>
 
             {/* 신청서 목록 */}
@@ -2978,9 +3000,22 @@ export default function AdminPage() {
               <div className="p-6 border-b border-gray-200">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900">신청서 목록</h3>
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      신청서 목록
+                      {applicationFilter !== 'all' && (
+                        <span className="ml-2 text-sm font-normal text-gray-600">
+                          ({applicationFilter === 'pending' ? '대기중' : 
+                            applicationFilter === 'approved' ? '승인됨' : '거부됨'} 필터 적용)
+                        </span>
+                      )}
+                    </h3>
                     <p className="text-sm text-gray-500">
-                      총 {applications.length}개의 신청서
+                      {(() => {
+                        const filteredApplications = applicationFilter === 'all' 
+                          ? applications 
+                          : applications.filter(app => app.status === applicationFilter)
+                        return `총 ${filteredApplications.length}개의 신청서`
+                      })()}
                       {applications.filter(app => !app.name || !app.experienceTitle || !app.visitDate).length > 0 && (
                         <span className="ml-2 text-red-600 font-medium">
                           (이슈 {applications.filter(app => !app.name || !app.experienceTitle || !app.visitDate).length}개)
@@ -3013,14 +3048,23 @@ export default function AdminPage() {
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
                     <span className="ml-2 text-gray-600">신청서를 불러오는 중...</span>
                   </div>
-                ) : applications.length === 0 ? (
-                  <div className="text-center py-8">
-                    <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500">신청서가 없습니다</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {applications.map((application) => {
+                ) : (() => {
+                  const filteredApplications = applicationFilter === 'all' 
+                    ? applications 
+                    : applications.filter(app => app.status === applicationFilter)
+                  
+                  return filteredApplications.length === 0 ? (
+                    <div className="text-center py-8">
+                      <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500">
+                        {applicationFilter === 'all' ? '신청서가 없습니다' : 
+                         `${applicationFilter === 'pending' ? '대기중' : 
+                           applicationFilter === 'approved' ? '승인됨' : '거부됨'} 신청서가 없습니다`}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {filteredApplications.map((application) => {
                       // 오류가 있는 신청서 식별
                       const hasError = !application.name || !application.experienceTitle || !application.visitDate
                       return (
@@ -3127,7 +3171,8 @@ export default function AdminPage() {
                       )
                     })}
                   </div>
-                )}
+                )
+              })()}
               </div>
             </div>
           </div>
@@ -4382,7 +4427,12 @@ export default function AdminPage() {
 
             {/* 인스타그램 신청 통계 */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="bg-gradient-to-r from-pink-500 to-pink-600 p-6 rounded-xl text-white">
+              <button 
+                onClick={() => setInstagramApplicationFilter('all')}
+                className={`bg-gradient-to-r from-pink-500 to-pink-600 p-6 rounded-xl text-white transition-all duration-200 hover:scale-105 hover:shadow-lg ${
+                  instagramApplicationFilter === 'all' ? 'ring-4 ring-pink-300 shadow-xl' : ''
+                }`}
+              >
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-pink-100 text-sm font-medium">총 신청</p>
@@ -4390,9 +4440,14 @@ export default function AdminPage() {
                   </div>
                   <FileText className="h-8 w-8 text-pink-200" />
                 </div>
-              </div>
+              </button>
               
-              <div className="bg-gradient-to-r from-yellow-500 to-yellow-600 p-6 rounded-xl text-white">
+              <button 
+                onClick={() => setInstagramApplicationFilter('pending')}
+                className={`bg-gradient-to-r from-yellow-500 to-yellow-600 p-6 rounded-xl text-white transition-all duration-200 hover:scale-105 hover:shadow-lg ${
+                  instagramApplicationFilter === 'pending' ? 'ring-4 ring-yellow-300 shadow-xl' : ''
+                }`}
+              >
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-yellow-100 text-sm font-medium">대기중</p>
@@ -4400,9 +4455,14 @@ export default function AdminPage() {
                   </div>
                   <Clock className="h-8 w-8 text-yellow-200" />
                 </div>
-              </div>
+              </button>
               
-              <div className="bg-gradient-to-r from-green-500 to-green-600 p-6 rounded-xl text-white">
+              <button 
+                onClick={() => setInstagramApplicationFilter('approved')}
+                className={`bg-gradient-to-r from-green-500 to-green-600 p-6 rounded-xl text-white transition-all duration-200 hover:scale-105 hover:shadow-lg ${
+                  instagramApplicationFilter === 'approved' ? 'ring-4 ring-green-300 shadow-xl' : ''
+                }`}
+              >
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-green-100 text-sm font-medium">승인됨</p>
@@ -4410,9 +4470,14 @@ export default function AdminPage() {
                   </div>
                   <CheckCircle className="h-8 w-8 text-green-200" />
                 </div>
-              </div>
+              </button>
               
-              <div className="bg-gradient-to-r from-red-500 to-red-600 p-6 rounded-xl text-white">
+              <button 
+                onClick={() => setInstagramApplicationFilter('rejected')}
+                className={`bg-gradient-to-r from-red-500 to-red-600 p-6 rounded-xl text-white transition-all duration-200 hover:scale-105 hover:shadow-lg ${
+                  instagramApplicationFilter === 'rejected' ? 'ring-4 ring-red-300 shadow-xl' : ''
+                }`}
+              >
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-red-100 text-sm font-medium">거부됨</p>
@@ -4420,7 +4485,7 @@ export default function AdminPage() {
                   </div>
                   <XCircle className="h-8 w-8 text-red-200" />
                 </div>
-              </div>
+              </button>
             </div>
 
             {/* 인스타그램 신청서 목록 */}
@@ -4428,9 +4493,22 @@ export default function AdminPage() {
               <div className="p-6 border-b border-gray-200">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900">인스타그램 신청서 목록</h3>
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      인스타그램 신청서 목록
+                      {instagramApplicationFilter !== 'all' && (
+                        <span className="ml-2 text-sm font-normal text-gray-600">
+                          ({instagramApplicationFilter === 'pending' ? '대기중' : 
+                            instagramApplicationFilter === 'approved' ? '승인됨' : '거부됨'} 필터 적용)
+                        </span>
+                      )}
+                    </h3>
                     <p className="text-sm text-gray-500">
-                      총 {instagramApplications.length}개의 신청서
+                      {(() => {
+                        const filteredApplications = instagramApplicationFilter === 'all' 
+                          ? instagramApplications 
+                          : instagramApplications.filter(app => app.status === instagramApplicationFilter)
+                        return `총 ${filteredApplications.length}개의 신청서`
+                      })()}
                       {instagramApplications.filter(app => !app.name || !app.experienceTitle || !app.visitDate).length > 0 && (
                         <span className="ml-2 text-red-600 font-medium">
                           (이슈 {instagramApplications.filter(app => !app.name || !app.experienceTitle || !app.visitDate).length}개)
@@ -4463,14 +4541,23 @@ export default function AdminPage() {
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
                     <span className="ml-2 text-gray-600">인스타그램 신청서를 불러오는 중...</span>
                   </div>
-                ) : instagramApplications.length === 0 ? (
-                  <div className="text-center py-8">
-                    <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500">인스타그램 신청서가 없습니다</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {instagramApplications.map((application) => {
+                ) : (() => {
+                  const filteredApplications = instagramApplicationFilter === 'all' 
+                    ? instagramApplications 
+                    : instagramApplications.filter(app => app.status === instagramApplicationFilter)
+                  
+                  return filteredApplications.length === 0 ? (
+                    <div className="text-center py-8">
+                      <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500">
+                        {instagramApplicationFilter === 'all' ? '인스타그램 신청서가 없습니다' : 
+                         `${instagramApplicationFilter === 'pending' ? '대기중' : 
+                           instagramApplicationFilter === 'approved' ? '승인됨' : '거부됨'} 신청서가 없습니다`}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {filteredApplications.map((application) => {
                       // 오류가 있는 신청서 식별
                       const hasError = !application.name || !application.experienceTitle || !application.visitDate
                       return (
@@ -4577,7 +4664,8 @@ export default function AdminPage() {
                       )
                     })}
                   </div>
-                )}
+                )
+              })()}
               </div>
             </div>
           </div>
