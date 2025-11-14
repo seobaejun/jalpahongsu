@@ -720,11 +720,19 @@ export default function AdminPage() {
       }
       
       if (editingCardId) {
-        // 수정 모드
-        const { doc, updateDoc } = await import('firebase/firestore')
+        // 수정 모드 - 기존 applications 유지
+        const { doc, updateDoc, getDoc } = await import('firebase/firestore')
         const experienceRef = doc(db, 'experiences', editingCardId)
+        
+        // 기존 데이터 가져오기 (applications 보존을 위해)
+        const existingDoc = await getDoc(experienceRef)
+        const existingData = existingDoc.exists() ? existingDoc.data() : null
+        const existingApplications = existingData?.applications || []
+        
         await updateDoc(experienceRef, {
           ...newExperience,
+          applications: existingApplications, // 기존 신청 리스트 유지
+          createdAt: existingData?.createdAt || Timestamp.now(), // 생성일도 유지
           updatedAt: Timestamp.now()
         })
         setCardMessage('체험단 카드가 성공적으로 수정되었습니다!')
@@ -1359,6 +1367,18 @@ export default function AdminPage() {
     }
   }, [])
 
+  // activeTab이 변경될 때 해당 탭의 데이터 자동 로드
+  useEffect(() => {
+    if (!isAuthenticated || adminLoading || !isAdmin) return
+
+    if (activeTab === 'applications') {
+      loadApplications()
+      loadApplicationStats()
+    } else if (activeTab === 'instagram-applications') {
+      loadInstagramApplications()
+    }
+  }, [activeTab, isAuthenticated, adminLoading, isAdmin, loadApplications, loadApplicationStats, loadInstagramApplications])
+
   // 인스타그램 사용자 통계 로딩 (인스타그램 체험단 신청자 기준)
   const loadInstagramUserStats = useCallback(async () => {
     try {
@@ -1872,10 +1892,19 @@ export default function AdminPage() {
       }
 
       if (instagramEditingCardId) {
-        // 수정 모드
+        // 수정 모드 - 기존 applications 유지
+        const { getDoc } = await import('firebase/firestore')
         const experienceRef = doc(db, 'instagram_experiences', instagramEditingCardId)
+        
+        // 기존 데이터 가져오기 (applications 보존을 위해)
+        const existingDoc = await getDoc(experienceRef)
+        const existingData = existingDoc.exists() ? existingDoc.data() : null
+        const existingApplications = existingData?.applications || []
+        
         await updateDoc(experienceRef, {
           ...experienceData,
+          applications: existingApplications, // 기존 신청 리스트 유지
+          createdAt: existingData?.createdAt || new Date(), // 생성일도 유지
           updatedAt: new Date()
         })
         setInstagramCardMessage('인스타그램 체험단이 성공적으로 수정되었습니다.')
@@ -3096,34 +3125,94 @@ export default function AdminPage() {
                           {/* 주요 정보 그리드 */}
                           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
                             <div className="bg-gray-50 p-2 rounded">
+                              <div className="text-gray-500 text-xs">신청일</div>
+                              <div className="font-medium">
+                                {application.createdAt 
+                                  ? (application.createdAt instanceof Date 
+                                      ? application.createdAt.toLocaleDateString('ko-KR')
+                                      : new Date(application.createdAt).toLocaleDateString('ko-KR'))
+                                  : '날짜 없음'}
+                              </div>
+                            </div>
+                            <div className="bg-gray-50 p-2 rounded">
                               <div className="text-gray-500 text-xs">방문일</div>
                               <div className="font-medium">{application.visitDate || '미입력'}</div>
                             </div>
                             <div className="bg-gray-50 p-2 rounded">
                               <div className="text-gray-500 text-xs">방문시간</div>
-                              <div className="font-medium">{application.visitTimePeriod} {application.visitTimeHour}:{application.visitTimeMinute}</div>
+                              <div className="font-medium">
+                                {application.visitTimePeriod && application.visitTimeHour && application.visitTimeMinute
+                                  ? `${application.visitTimePeriod} ${application.visitTimeHour}:${application.visitTimeMinute}`
+                                  : application.visitTime || '미입력'}
+                              </div>
                             </div>
                             <div className="bg-gray-50 p-2 rounded">
                               <div className="text-gray-500 text-xs">인원</div>
-                              <div className="font-medium">{application.visitCount}명</div>
+                              <div className="font-medium">{application.visitCount || '미입력'}명</div>
+                            </div>
+                          </div>
+                          
+                          {/* 추가 정보 그리드 */}
+                          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
+                            <div className="bg-gray-50 p-2 rounded">
+                              <div className="text-gray-500 text-xs">여권번호</div>
+                              <div className="font-medium">{application.passportNumber || '미입력'}</div>
                             </div>
                             <div className="bg-gray-50 p-2 rounded">
                               <div className="text-gray-500 text-xs">팔로워</div>
-                              <div className="font-medium">{application.followerCount.toLocaleString()}명</div>
+                              <div className="font-medium">
+                                {application.followerCount 
+                                  ? (typeof application.followerCount === 'string' 
+                                      ? parseInt(application.followerCount).toLocaleString() 
+                                      : application.followerCount.toLocaleString())
+                                  : '0'}명
+                              </div>
+                            </div>
+                            <div className="bg-gray-50 p-2 rounded">
+                              <div className="text-gray-500 text-xs">처리일시</div>
+                              <div className="font-medium text-xs">
+                                {application.updatedAt 
+                                  ? (application.updatedAt instanceof Date 
+                                      ? application.updatedAt.toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                                      : new Date(application.updatedAt).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }))
+                                  : '날짜 없음'}
+                              </div>
+                            </div>
+                            <div className="bg-gray-50 p-2 rounded">
+                              <div className="text-gray-500 text-xs">신청 ID</div>
+                              <div className="font-medium text-xs truncate">{application.id || 'ID 없음'}</div>
                             </div>
                           </div>
                           
                           {/* 연락처 정보 */}
-                          <div className="flex flex-wrap gap-4 text-sm">
-                            <div className="flex items-center space-x-1">
-                              <span className="text-gray-500">위쳇:</span>
-                              <span className="font-medium text-gray-900">{application.wechatId}</span>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                            <div className="bg-gray-50 p-2 rounded">
+                              <div className="text-gray-500 text-xs mb-1">위쳇 ID</div>
+                              <div className="font-medium text-gray-900 break-all">{application.wechatId || '미입력'}</div>
                             </div>
-                            <div className="flex items-center space-x-1">
-                              <span className="text-gray-500">샤오홍슈:</span>
-                              <span className="font-medium text-gray-900">{application.xiaohongshuId}</span>
+                            <div className="bg-gray-50 p-2 rounded">
+                              <div className="text-gray-500 text-xs mb-1">샤오홍슈 ID</div>
+                              <div className="font-medium text-gray-900 break-all">{application.xiaohongshuId || '미입력'}</div>
                             </div>
                           </div>
+                          
+                          {/* 추가 상세 정보 (있는 경우) */}
+                          {(application as any).phoneNumber || (application as any).email ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm border-t pt-3">
+                              {(application as any).phoneNumber && (
+                                <div className="bg-gray-50 p-2 rounded">
+                                  <div className="text-gray-500 text-xs mb-1">전화번호</div>
+                                  <div className="font-medium text-gray-900">{(application as any).phoneNumber}</div>
+                                </div>
+                              )}
+                              {(application as any).email && (
+                                <div className="bg-gray-50 p-2 rounded">
+                                  <div className="text-gray-500 text-xs mb-1">이메일</div>
+                                  <div className="font-medium text-gray-900 break-all">{(application as any).email}</div>
+                                </div>
+                              )}
+                            </div>
+                          ) : null}
                           
                           {/* 액션 버튼들 - 가운데 정렬 */}
                           <div className="flex items-center justify-center space-x-2 pt-2 border-t border-gray-200">
@@ -3834,9 +3923,9 @@ export default function AdminPage() {
                     <h4 className="font-semibold text-gray-900 mb-2">데이터 미리보기</h4>
                     <p className="text-sm text-gray-600 mb-3">총 {excelData.length}개의 신청 데이터가 있습니다.</p>
                     
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
                       <table className="min-w-full text-sm">
-                        <thead>
+                        <thead className="sticky top-0 bg-gray-50 z-10">
                           <tr className="border-b border-gray-200">
                             <th className="text-left py-2 px-3 font-semibold text-gray-700">신청자</th>
                             <th className="text-left py-2 px-3 font-semibold text-gray-700">체험단</th>
@@ -3845,7 +3934,7 @@ export default function AdminPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {excelData.slice(0, 5).map((row, index) => (
+                          {excelData.map((row, index) => (
                             <tr key={index} className="border-b border-gray-100">
                               <td className="py-2 px-3">
                                 <div>
@@ -3872,12 +3961,6 @@ export default function AdminPage() {
                         </tbody>
                       </table>
                     </div>
-                    
-                    {excelData.length > 5 && (
-                      <p className="text-xs text-gray-500 mt-2">
-                        ... 외 {excelData.length - 5}개 더 (엑셀 파일에서 전체 데이터 확인 가능)
-                      </p>
-                    )}
                   </div>
                 </div>
               ) : (
@@ -4589,34 +4672,94 @@ export default function AdminPage() {
                           {/* 주요 정보 그리드 */}
                           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
                             <div className="bg-gray-50 p-2 rounded">
+                              <div className="text-gray-500 text-xs">신청일</div>
+                              <div className="font-medium">
+                                {application.createdAt 
+                                  ? (application.createdAt instanceof Date 
+                                      ? application.createdAt.toLocaleDateString('ko-KR')
+                                      : new Date(application.createdAt).toLocaleDateString('ko-KR'))
+                                  : '날짜 없음'}
+                              </div>
+                            </div>
+                            <div className="bg-gray-50 p-2 rounded">
                               <div className="text-gray-500 text-xs">방문일</div>
                               <div className="font-medium">{application.visitDate || '미입력'}</div>
                             </div>
                             <div className="bg-gray-50 p-2 rounded">
                               <div className="text-gray-500 text-xs">방문시간</div>
-                              <div className="font-medium">{application.visitTimePeriod} {application.visitTimeHour}:{application.visitTimeMinute}</div>
+                              <div className="font-medium">
+                                {application.visitTimePeriod && application.visitTimeHour && application.visitTimeMinute
+                                  ? `${application.visitTimePeriod} ${application.visitTimeHour}:${application.visitTimeMinute}`
+                                  : application.visitTime || '미입력'}
+                              </div>
                             </div>
                             <div className="bg-gray-50 p-2 rounded">
                               <div className="text-gray-500 text-xs">인원</div>
-                              <div className="font-medium">{application.visitCount}명</div>
+                              <div className="font-medium">{application.visitCount || '미입력'}명</div>
+                            </div>
+                          </div>
+                          
+                          {/* 추가 정보 그리드 */}
+                          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
+                            <div className="bg-gray-50 p-2 rounded">
+                              <div className="text-gray-500 text-xs">여권번호</div>
+                              <div className="font-medium">{application.passportNumber || '미입력'}</div>
                             </div>
                             <div className="bg-gray-50 p-2 rounded">
                               <div className="text-gray-500 text-xs">팔로워</div>
-                              <div className="font-medium">{application.followerCount.toLocaleString()}명</div>
+                              <div className="font-medium">
+                                {application.followerCount 
+                                  ? (typeof application.followerCount === 'string' 
+                                      ? parseInt(application.followerCount).toLocaleString() 
+                                      : application.followerCount.toLocaleString())
+                                  : '0'}명
+                              </div>
+                            </div>
+                            <div className="bg-gray-50 p-2 rounded">
+                              <div className="text-gray-500 text-xs">처리일시</div>
+                              <div className="font-medium text-xs">
+                                {application.updatedAt 
+                                  ? (application.updatedAt instanceof Date 
+                                      ? application.updatedAt.toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                                      : new Date(application.updatedAt).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }))
+                                  : '날짜 없음'}
+                              </div>
+                            </div>
+                            <div className="bg-gray-50 p-2 rounded">
+                              <div className="text-gray-500 text-xs">신청 ID</div>
+                              <div className="font-medium text-xs truncate">{application.id || 'ID 없음'}</div>
                             </div>
                           </div>
                           
                           {/* 연락처 정보 */}
-                          <div className="flex flex-wrap gap-4 text-sm">
-                            <div className="flex items-center space-x-1">
-                              <span className="text-gray-500">위쳇:</span>
-                              <span className="font-medium text-gray-900">{application.wechatId}</span>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                            <div className="bg-gray-50 p-2 rounded">
+                              <div className="text-gray-500 text-xs mb-1">위쳇 ID</div>
+                              <div className="font-medium text-gray-900 break-all">{application.wechatId || '미입력'}</div>
                             </div>
-                            <div className="flex items-center space-x-1">
-                              <span className="text-gray-500">인스타그램:</span>
-                              <span className="font-medium text-gray-900">{application.xiaohongshuId}</span>
+                            <div className="bg-gray-50 p-2 rounded">
+                              <div className="text-gray-500 text-xs mb-1">인스타그램 ID</div>
+                              <div className="font-medium text-gray-900 break-all">{application.xiaohongshuId || '미입력'}</div>
                             </div>
                           </div>
+                          
+                          {/* 추가 상세 정보 (있는 경우) */}
+                          {(application as any).phoneNumber || (application as any).email ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm border-t pt-3">
+                              {(application as any).phoneNumber && (
+                                <div className="bg-gray-50 p-2 rounded">
+                                  <div className="text-gray-500 text-xs mb-1">전화번호</div>
+                                  <div className="font-medium text-gray-900">{(application as any).phoneNumber}</div>
+                                </div>
+                              )}
+                              {(application as any).email && (
+                                <div className="bg-gray-50 p-2 rounded">
+                                  <div className="text-gray-500 text-xs mb-1">이메일</div>
+                                  <div className="font-medium text-gray-900 break-all">{(application as any).email}</div>
+                                </div>
+                              )}
+                            </div>
+                          ) : null}
                           
                           {/* 액션 버튼들 - 가운데 정렬 */}
                           <div className="flex items-center justify-center space-x-2 pt-2 border-t border-gray-200">
@@ -5326,9 +5469,9 @@ export default function AdminPage() {
                     <h4 className="font-semibold text-gray-900 mb-2">인스타그램 데이터 미리보기</h4>
                     <p className="text-sm text-gray-600 mb-3">총 {instagramExcelData.length}개의 인스타그램 신청 데이터가 있습니다.</p>
                     
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
                       <table className="min-w-full text-sm">
-                        <thead>
+                        <thead className="sticky top-0 bg-gray-50 z-10">
                           <tr className="border-b border-gray-200">
                             <th className="text-left py-2 px-3 font-semibold text-gray-700">신청자</th>
                             <th className="text-left py-2 px-3 font-semibold text-gray-700">체험단</th>
@@ -5337,7 +5480,7 @@ export default function AdminPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {instagramExcelData.slice(0, 5).map((row, index) => (
+                          {instagramExcelData.map((row, index) => (
                             <tr key={index} className="border-b border-gray-100">
                               <td className="py-2 px-3">
                                 <div>
@@ -5364,12 +5507,6 @@ export default function AdminPage() {
                         </tbody>
                       </table>
                     </div>
-                    
-                    {instagramExcelData.length > 5 && (
-                      <p className="text-xs text-gray-500 mt-2">
-                        ... 외 {instagramExcelData.length - 5}개 더 (엑셀 파일에서 전체 데이터 확인 가능)
-                      </p>
-                    )}
                   </div>
                 </div>
               ) : (
@@ -5446,7 +5583,16 @@ export default function AdminPage() {
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveTab(item.id)}
+                onClick={() => {
+                  setActiveTab(item.id)
+                  // 신청 관리 탭 클릭 시 즉시 데이터 로드
+                  if (item.id === 'applications') {
+                    loadApplications()
+                    loadApplicationStats()
+                  } else if (item.id === 'instagram-applications') {
+                    loadInstagramApplications()
+                  }
+                }}
                 className={`w-full flex items-center space-x-3 px-6 py-3 text-left transition-colors ${
                   activeTab === item.id
                     ? 'bg-red-50 text-red-700 border-r-2 border-red-600'

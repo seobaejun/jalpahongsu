@@ -152,8 +152,16 @@ export const getAllApplications = async () => {
         })
         
         // Firestore Timestamp를 Date로 변환
-        const createdAt = app.createdAt
-        const updatedAt = app.updatedAt
+        const createdAt = app.createdAt 
+          ? (app.createdAt instanceof Date 
+              ? app.createdAt 
+              : (app.createdAt as any)?.toDate ? (app.createdAt as any).toDate() : new Date(app.createdAt))
+          : new Date()
+        const updatedAt = app.updatedAt 
+          ? (app.updatedAt instanceof Date 
+              ? app.updatedAt 
+              : (app.updatedAt as any)?.toDate ? (app.updatedAt as any).toDate() : new Date(app.updatedAt))
+          : new Date()
         
         allApplications.push({
           ...app,
@@ -187,8 +195,16 @@ export const getAllApplications = async () => {
         })
         
         // Firestore Timestamp를 Date로 변환
-        const createdAt = app.createdAt
-        const updatedAt = app.updatedAt
+        const createdAt = app.createdAt 
+          ? (app.createdAt instanceof Date 
+              ? app.createdAt 
+              : (app.createdAt as any)?.toDate ? (app.createdAt as any).toDate() : new Date(app.createdAt))
+          : new Date()
+        const updatedAt = app.updatedAt 
+          ? (app.updatedAt instanceof Date 
+              ? app.updatedAt 
+              : (app.updatedAt as any)?.toDate ? (app.updatedAt as any).toDate() : new Date(app.updatedAt))
+          : new Date()
         
         allApplications.push({
           ...app,

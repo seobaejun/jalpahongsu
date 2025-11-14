@@ -10,6 +10,7 @@ import { User, Calendar, FileText, Settings, LogOut } from 'lucide-react'
 
 interface UserApplication {
   id: string
+  experienceId: string // 체험단 ID 추가
   experienceTitle: string
   status: 'pending' | 'approved' | 'rejected'
   appliedAt: string
@@ -223,6 +224,7 @@ export default function MyPage() {
           
           const userApp: UserApplication = {
             id: `exp_${doc.id}_${app.id || app.name}_${appIndex}`,
+            experienceId: doc.id, // 체험단 ID 저장
             experienceTitle: experienceData.title, // 원본 제목 저장
             status: app.status || 'pending',
             appliedAt: createdAt ? createdAt.toLocaleDateString('ko-KR') : t('mypage.unknown'),
@@ -334,6 +336,7 @@ export default function MyPage() {
           
           const userApp: UserApplication = {
             id: `ig_${doc.id}_${app.id || app.name}_${appIndex}`,
+            experienceId: doc.id, // 체험단 ID 저장
             experienceTitle: experienceData.title, // 원본 제목 저장
             status: app.status || 'pending',
             appliedAt: createdAt ? createdAt.toLocaleDateString('ko-KR') : t('mypage.unknown'),
@@ -527,11 +530,22 @@ export default function MyPage() {
             ) : (
               <div className="space-y-4">
                 {applications.map((application) => (
-                  <div key={application.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                  <div 
+                    key={application.id} 
+                    onClick={() => {
+                      // 플랫폼에 따라 다른 경로로 이동
+                      if (application.platform === 'xiaohongshu') {
+                        router.push(`/experiences/${application.experienceId}`)
+                      } else {
+                        router.push(`/instagram/experiences/${application.experienceId}`)
+                      }
+                    }}
+                    className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 hover:shadow-md transition-all cursor-pointer"
+                  >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
-                          <h3 className="font-semibold text-gray-900">
+                          <h3 className="font-semibold text-gray-900 hover:text-red-600 transition-colors">
                             {translateTitle(application.experienceTitle)}
                           </h3>
                           {/* 플랫폼 표시 */}
@@ -558,10 +572,11 @@ export default function MyPage() {
                           </div>
                         </div>
                       </div>
-                      <div className="ml-4">
+                      <div className="ml-4 flex flex-col items-end gap-2">
                         <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(application.status)}`}>
                           {getStatusText(application.status)}
                         </span>
+                        <span className="text-xs text-gray-500">클릭하여 상세보기</span>
                       </div>
                     </div>
                   </div>
